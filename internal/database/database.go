@@ -35,6 +35,7 @@ var (
 	port       = os.Getenv("BLUEPRINT_DB_PORT")
 	host       = os.Getenv("BLUEPRINT_DB_HOST")
 	schema     = os.Getenv("BLUEPRINT_DB_SCHEMA")
+	version    = os.Getenv("BLUEPRINT_DB_VERSION")
 	dbInstance *service
 )
 
@@ -51,6 +52,12 @@ func New() Service {
 	dbInstance = &service{
 		db: db,
 	}
+
+	err = dbInstance.init()
+	if err != nil {
+		log.Fatalf("Could not init db: %v\n", err)
+	}
+
 	return dbInstance
 }
 
@@ -112,4 +119,55 @@ func (s *service) Health() map[string]string {
 func (s *service) Close() error {
 	log.Printf("Disconnected from database: %s", database)
 	return s.db.Close()
+}
+
+func (s *service) init() error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS __db_version__ ( current_version INTEGER )")
+
+	if err != nil {
+		return err
+	}
+
+	row := tx.QueryRow("SELECT current_version FROM __db_version__ LIMIT 1")
+
+	var version int32
+	if row.Scan(&version) != nil {
+		err = createTables(tx)
+		if err != nil {
+			log.Fatalf("Could not create database tables: %v\n", err)
+			return err
+		}
+
+		version = 1
+		_, err = tx.Exec("INSERT INTO __db_version__ VALUES (1)")
+		if err != nil {
+			log.Fatalf("Could not insert new version number into version table: %v\n", err)
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+func createTables(tx *sql.Tx) error {
+	_, err := tx.Exec("CREATE TABLE IF NOT EXISTS ob_sessions (id TEXT PRIMARY KEY, installation_id TEXT NOT NULL, created_at INTEGER NOT NULL, crashed SMALLINT NOT NULL DEFAULT 0)")
+
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS ob_events (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, created_at INTEGER NOT NULL, type TEXT NOT NULL, serialized_data TEXT DEFAULT '', FOREIGN KEY (session_id) REFERENCES ob_sessions (id) ON DELETE NO ACTION ON UPDATE NO ACTION)")
+
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS ob_trace (trace_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, group_id TEXT NOT NULL, parent_id TEXT DEFAULT '', name TEXT NOT NULL, status TEXT NOT NULL, error_message TEXT DEFAULT '', started_at BIGINT NOT NULL, ended_at BIGINT NOT NULL DEFAULT 0, has_ended INTEGER NOT NULL DEFAULT 0, FOREIGN KEY (session_id) REFERENCES ob_sessions (id) ON DELETE NO ACTION ON UPDATE NO ACTION)")
+
+	return err
 }
