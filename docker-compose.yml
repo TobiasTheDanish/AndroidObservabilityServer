@@ -11,5 +11,19 @@ services:
     volumes:
       - psql_volume_bp:/var/lib/postgresql/data
 
+  pg_admin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: t.hc199811@gmail.com
+      PGADMIN_DEFAULT_PASSWORD: ${BLUEPRINT_DB_PASSWORD}
+      POSTGRES_DB: ${BLUEPRINT_DB_DATABASE}
+      POSTGRES_USER: ${BLUEPRINT_DB_USERNAME}
+      POSTGRES_PASSWORD: ${BLUEPRINT_DB_PASSWORD}
+      PGADMIN_LISTEN_PORT: 3000
+    ports:
+      - "5000:3000"
+    volumes:
+      - psql_volume_bp:/var/lib/postgresql/data
+
 volumes:
   psql_volume_bp:
