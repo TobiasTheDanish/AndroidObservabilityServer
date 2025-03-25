@@ -1,6 +1,7 @@
 package database
 
 import (
+	"ObservabilityServer/internal/model"
 	"context"
 	"database/sql"
 	"fmt"
@@ -15,6 +16,8 @@ import (
 
 // Service represents a service that interacts with a database.
 type Service interface {
+	CreateSession(data model.NewSessionDTO) error
+
 	// Health returns a map of health status information.
 	// The keys and values in the map are service-specific.
 	Health() map[string]string
@@ -59,6 +62,29 @@ func New() Service {
 	}
 
 	return dbInstance
+}
+
+func (s *service) CreateSession(data model.NewSessionDTO) error {
+	crashed := 0
+	if data.Crashed {
+		crashed = 1
+	}
+
+	res, err := s.db.Exec("INSERT INTO ob_sessions VALUES id=?, installation_id=?, created_at=?, crashed=?", data.Id, data.InstallationId, data.CreatedAt, crashed)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected != 1 {
+		return fmt.Errorf("Expected 1 session to be inserted but was %d", rowsAffected)
+	}
+
+	return nil
 }
 
 // Health checks the health of the database connection by pinging the database.

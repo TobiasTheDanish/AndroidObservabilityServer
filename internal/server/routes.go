@@ -16,6 +16,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	e.GET("/health", s.healthHandler)
 
+	e.POST("/api/v1/sessions", s.createSessionHandler)
+
 	return e
 }
 
@@ -29,4 +31,9 @@ func (s *Server) HelloWorldHandler(c echo.Context) error {
 
 func (s *Server) healthHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, s.db.Health())
+}
+
+func (s *Server) createSessionHandler(c echo.Context) error {
+
+	return nil
 }
