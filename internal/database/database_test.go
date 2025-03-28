@@ -1,6 +1,7 @@
 package database
 
 import (
+	"ObservabilityServer/internal/model"
 	"context"
 	"log"
 	"testing"
@@ -11,7 +12,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-func mustStartPostgresContainer() (func(context.Context) error, error) {
+func mustStartPostgresContainer() (func(context.Context, ...testcontainers.TerminateOption) error, error) {
 	var (
 		dbName = "database"
 		dbPwd  = "password"
@@ -70,6 +71,84 @@ func TestNew(t *testing.T) {
 	srv := New()
 	if srv == nil {
 		t.Fatal("New() returned nil")
+	}
+}
+
+func TestCreateSession(t *testing.T) {
+	srv := New()
+
+	data := model.NewSessionDTO{
+		Id:             "TestSession123",
+		InstallationId: "InstallationIdForTestSession123",
+		CreatedAt:      1,
+		Crashed:        false,
+	}
+
+	err := srv.CreateSession(data)
+	if err != nil {
+		t.Fatalf("CreateSession failed: %v\n", err)
+	}
+
+	err = srv.CreateSession(data)
+	if err == nil {
+		t.Fatalf("CreateSession was expected to fail, but didnt!")
+	}
+}
+
+func TestCreateEvent(t *testing.T) {
+	srv := New()
+
+	sessionData := model.NewSessionDTO{
+		Id:             "TestSession1234",
+		InstallationId: "InstallationIdForTestSession123",
+		CreatedAt:      1,
+		Crashed:        false,
+	}
+
+	_ = srv.CreateSession(sessionData)
+
+	eventData := model.NewEventDTO{
+		ID:             "TestEvent",
+		SessionID:      sessionData.Id,
+		Type:           "TestEvent",
+		SerializedData: "{}",
+		CreatedAt:      2,
+	}
+
+	err := srv.CreateEvent(eventData)
+	if err != nil {
+		t.Fatalf("CreateEvent failed: %v\n", err)
+	}
+}
+
+func TestCreateTrace(t *testing.T) {
+	srv := New()
+
+	sessionData := model.NewSessionDTO{
+		Id:             "TestSession12345",
+		InstallationId: "InstallationIdForTestSession123",
+		CreatedAt:      1,
+		Crashed:        false,
+	}
+
+	_ = srv.CreateSession(sessionData)
+
+	traceData := model.NewTraceDTO{
+		TraceId:      "TestTrace",
+		SessionId:    sessionData.Id,
+		GroupId:      "TestGroup",
+		ParentId:     "",
+		Name:         "TraceTest",
+		Status:       "Ok",
+		ErrorMessage: "",
+		StartedAt:    2,
+		EndedAt:      4,
+		HasEnded:     true,
+	}
+
+	err := srv.CreateTrace(traceData)
+	if err != nil {
+		t.Fatalf("CreateTrace failed: %v\n", err)
 	}
 }
 
