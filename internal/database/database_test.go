@@ -77,7 +77,7 @@ func TestNew(t *testing.T) {
 func TestCreateSession(t *testing.T) {
 	srv := New()
 
-	data := model.NewSessionDTO{
+	data := model.NewSessionData{
 		Id:             "TestSession123",
 		InstallationId: "InstallationIdForTestSession123",
 		CreatedAt:      1,
@@ -98,7 +98,7 @@ func TestCreateSession(t *testing.T) {
 func TestCreateEvent(t *testing.T) {
 	srv := New()
 
-	sessionData := model.NewSessionDTO{
+	sessionData := model.NewSessionData{
 		Id:             "TestSession1234",
 		InstallationId: "InstallationIdForTestSession123",
 		CreatedAt:      1,
@@ -107,7 +107,7 @@ func TestCreateEvent(t *testing.T) {
 
 	_ = srv.CreateSession(sessionData)
 
-	eventData := model.NewEventDTO{
+	eventData := model.NewEventData{
 		ID:             "TestEvent",
 		SessionID:      sessionData.Id,
 		Type:           "TestEvent",
@@ -124,7 +124,7 @@ func TestCreateEvent(t *testing.T) {
 func TestCreateTrace(t *testing.T) {
 	srv := New()
 
-	sessionData := model.NewSessionDTO{
+	sessionData := model.NewSessionData{
 		Id:             "TestSession12345",
 		InstallationId: "InstallationIdForTestSession123",
 		CreatedAt:      1,
@@ -133,7 +133,7 @@ func TestCreateTrace(t *testing.T) {
 
 	_ = srv.CreateSession(sessionData)
 
-	traceData := model.NewTraceDTO{
+	traceData := model.NewTraceData{
 		TraceId:      "TestTrace",
 		SessionId:    sessionData.Id,
 		GroupId:      "TestGroup",

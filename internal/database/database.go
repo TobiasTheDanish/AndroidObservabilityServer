@@ -16,9 +16,9 @@ import (
 
 // Service represents a service that interacts with a database.
 type Service interface {
-	CreateSession(data model.NewSessionDTO) error
-	CreateEvent(data model.NewEventDTO) error
-	CreateTrace(data model.NewTraceDTO) error
+	CreateSession(data model.NewSessionData) error
+	CreateEvent(data model.NewEventData) error
+	CreateTrace(data model.NewTraceData) error
 
 	// Health returns a map of health status information.
 	// The keys and values in the map are service-specific.
@@ -66,7 +66,7 @@ func New() Service {
 	return dbInstance
 }
 
-func (s *service) CreateSession(data model.NewSessionDTO) error {
+func (s *service) CreateSession(data model.NewSessionData) error {
 	crashed := 0
 	if data.Crashed {
 		crashed = 1
@@ -89,7 +89,7 @@ func (s *service) CreateSession(data model.NewSessionDTO) error {
 	return nil
 }
 
-func (s *service) CreateEvent(data model.NewEventDTO) error {
+func (s *service) CreateEvent(data model.NewEventData) error {
 	sql := " INSERT INTO public.ob_events( id, session_id, created_at, type, serialized_data) VALUES ($1, $2, $3, $4, $5)"
 
 	res, err := s.db.Exec(sql, data.ID, data.SessionID, data.CreatedAt, data.Type, data.SerializedData)
@@ -109,7 +109,7 @@ func (s *service) CreateEvent(data model.NewEventDTO) error {
 	return nil
 }
 
-func (s *service) CreateTrace(data model.NewTraceDTO) error {
+func (s *service) CreateTrace(data model.NewTraceData) error {
 	sql := "INSERT INTO public.ob_trace( trace_id, session_id, group_id, parent_id, name, status, error_message, started_at, ended_at, has_ended) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"
 
 	hasEnded := 0
