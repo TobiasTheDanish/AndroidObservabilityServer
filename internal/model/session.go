@@ -3,6 +3,7 @@ package model
 type NewSessionData struct {
 	Id             string
 	InstallationId string
+	OwnerId        int
 	CreatedAt      int64
 	Crashed        bool
 }

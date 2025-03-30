@@ -20,6 +20,12 @@ type Service interface {
 	CreateEvent(data model.NewEventData) error
 	CreateTrace(data model.NewTraceData) error
 
+	// Validates that the given apiKey exists in the database and is active
+	ValidateApiKey(string) bool
+
+	// Returns the id of the owner of the ApiKey
+	GetOwnerId(apiKey string) (int, error)
+
 	// Health returns a map of health status information.
 	// The keys and values in the map are service-specific.
 	Health() map[string]string
@@ -72,7 +78,7 @@ func (s *service) CreateSession(data model.NewSessionData) error {
 		crashed = 1
 	}
 
-	res, err := s.db.Exec("INSERT INTO public.ob_sessions (id, installation_id, created_at, crashed) VALUES ($1, $2, $3, $4)", data.Id, data.InstallationId, data.CreatedAt, crashed)
+	res, err := s.db.Exec("INSERT INTO public.ob_sessions (id, installation_id, owner_id, created_at, crashed) VALUES ($1, $2, $3, $4, $5)", data.Id, data.InstallationId, data.OwnerId, data.CreatedAt, crashed)
 	if err != nil {
 		return err
 	}
@@ -90,9 +96,9 @@ func (s *service) CreateSession(data model.NewSessionData) error {
 }
 
 func (s *service) CreateEvent(data model.NewEventData) error {
-	sql := " INSERT INTO public.ob_events( id, session_id, created_at, type, serialized_data) VALUES ($1, $2, $3, $4, $5)"
+	sql := " INSERT INTO public.ob_events( id, session_id, owner_id, created_at, type, serialized_data) VALUES ($1, $2, $3, $4, $5, $6)"
 
-	res, err := s.db.Exec(sql, data.ID, data.SessionID, data.CreatedAt, data.Type, data.SerializedData)
+	res, err := s.db.Exec(sql, data.Id, data.SessionId, data.OwnerId, data.CreatedAt, data.Type, data.SerializedData)
 	if err != nil {
 		return err
 	}
@@ -110,14 +116,14 @@ func (s *service) CreateEvent(data model.NewEventData) error {
 }
 
 func (s *service) CreateTrace(data model.NewTraceData) error {
-	sql := "INSERT INTO public.ob_trace( trace_id, session_id, group_id, parent_id, name, status, error_message, started_at, ended_at, has_ended) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"
+	sql := "INSERT INTO public.ob_trace( trace_id, session_id, group_id, parent_id, owner_id, name, status, error_message, started_at, ended_at, has_ended) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"
 
 	hasEnded := 0
 	if data.HasEnded {
 		hasEnded = 1
 	}
 
-	res, err := s.db.Exec(sql, data.TraceId, data.SessionId, data.GroupId, data.ParentId, data.Name, data.Status, data.ErrorMessage, data.StartedAt, data.EndedAt, hasEnded)
+	res, err := s.db.Exec(sql, data.TraceId, data.SessionId, data.GroupId, data.ParentId, data.OwnerId, data.Name, data.Status, data.ErrorMessage, data.StartedAt, data.EndedAt, hasEnded)
 	if err != nil {
 		return err
 	}
@@ -132,6 +138,16 @@ func (s *service) CreateTrace(data model.NewTraceData) error {
 	}
 
 	return nil
+}
+
+func (s *service) ValidateApiKey(apiKey string) bool {
+
+	return false
+}
+
+func (s *service) GetOwnerId(apiKey string) (int, error) {
+
+	return -1, nil
 }
 
 // Health checks the health of the database connection by pinging the database.
@@ -224,23 +240,36 @@ func (s *service) init() error {
 		}
 	}
 
+	// When migrations are needed, add a version check here, and apply migrations as needed
+
 	return tx.Commit()
 }
 
 func createTables(tx *sql.Tx) error {
-	_, err := tx.Exec("CREATE TABLE IF NOT EXISTS public.ob_sessions (id TEXT PRIMARY KEY, installation_id TEXT NOT NULL, created_at INTEGER NOT NULL, crashed SMALLINT NOT NULL DEFAULT 0)")
+	_, err := tx.Exec("CREATE TABLE IF NOT EXISTS public.ob_owners (id SERIAL PRIMARY KEY, name TEXT NOT NULL)")
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS public.ob_api_keys (key TEXT PRIMARY KEY, owner_id INTEGER NOT NULL, FOREIGN KEY (owner_id) REFERENCES public.ob_owners (id) ON DELETE CASCADE ON UPDATE NO ACTION)")
 
 	if err != nil {
 		return err
 	}
 
-	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS public.ob_events (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, created_at INTEGER NOT NULL, type TEXT NOT NULL, serialized_data TEXT DEFAULT '', FOREIGN KEY (session_id) REFERENCES public.ob_sessions (id) ON DELETE NO ACTION ON UPDATE NO ACTION)")
+	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS public.ob_sessions (id TEXT PRIMARY KEY, installation_id TEXT NOT NULL, created_at INTEGER NOT NULL, crashed SMALLINT NOT NULL DEFAULT 0, owner_id INTEGER NOT NULL, FOREIGN KEY (owner_id) REFERENCES public.ob_owners (id) ON DELETE CASCADE ON UPDATE NO ACTION)")
 
 	if err != nil {
 		return err
 	}
 
-	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS public.ob_trace (trace_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, group_id TEXT NOT NULL, parent_id TEXT DEFAULT '', name TEXT NOT NULL, status TEXT NOT NULL, error_message TEXT DEFAULT '', started_at BIGINT NOT NULL, ended_at BIGINT NOT NULL DEFAULT 0, has_ended INTEGER NOT NULL DEFAULT 0, FOREIGN KEY (session_id) REFERENCES public.ob_sessions (id) ON DELETE NO ACTION ON UPDATE NO ACTION)")
+	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS public.ob_events (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, created_at INTEGER NOT NULL, type TEXT NOT NULL, serialized_data TEXT DEFAULT '', owner_id INTEGER NOT NULL, FOREIGN KEY (owner_id) REFERENCES public.ob_owners (id) ON DELETE CASCADE ON UPDATE NO ACTION, FOREIGN KEY (session_id) REFERENCES public.ob_sessions (id) ON DELETE NO ACTION ON UPDATE NO ACTION)")
+
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS public.ob_trace (trace_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, group_id TEXT NOT NULL, parent_id TEXT DEFAULT '', name TEXT NOT NULL, status TEXT NOT NULL, error_message TEXT DEFAULT '', started_at BIGINT NOT NULL, ended_at BIGINT NOT NULL DEFAULT 0, has_ended INTEGER NOT NULL DEFAULT 0, owner_id INTEGER NOT NULL, FOREIGN KEY (owner_id) REFERENCES public.ob_owners (id) ON DELETE CASCADE ON UPDATE NO ACTION, FOREIGN KEY (session_id) REFERENCES public.ob_sessions (id) ON DELETE NO ACTION ON UPDATE NO ACTION)")
 
 	return err
 }

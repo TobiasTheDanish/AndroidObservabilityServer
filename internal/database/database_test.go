@@ -108,8 +108,8 @@ func TestCreateEvent(t *testing.T) {
 	_ = srv.CreateSession(sessionData)
 
 	eventData := model.NewEventData{
-		ID:             "TestEvent",
-		SessionID:      sessionData.Id,
+		Id:             "TestEvent",
+		SessionId:      sessionData.Id,
 		Type:           "TestEvent",
 		SerializedData: "{}",
 		CreatedAt:      2,

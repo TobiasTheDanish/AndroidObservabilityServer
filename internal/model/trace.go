@@ -5,6 +5,7 @@ type NewTraceData struct {
 	SessionId    string
 	GroupId      string
 	ParentId     string
+	OwnerId      int
 	Name         string
 	Status       string
 	ErrorMessage string
