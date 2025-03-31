@@ -86,7 +86,7 @@ func (s *service) CreateOwner(data model.NewOwnerData) (int, error) {
 func (s *service) CreateApiKey(data model.NewApiKeyData) error {
 	query := "INSERT INTO public.ob_api_keys(key, owner_id) VALUES ($1, $2)"
 
-	res, err := s.db.Exec(query, data.Key, data.OwnerID)
+	res, err := s.db.Exec(query, data.Key, data.OwnerId)
 	if err != nil {
 		return err
 	}
@@ -190,7 +190,7 @@ func (s *service) GetOwnerId(apiKey string) (int, error) {
 	if err := s.db.QueryRow(query, apiKey).Scan(&ownerId); err != nil {
 		return -1, err
 	}
-	return -1, nil
+	return ownerId, nil
 }
 
 // Health checks the health of the database connection by pinging the database.

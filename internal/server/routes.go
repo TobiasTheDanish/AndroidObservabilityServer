@@ -1,9 +1,11 @@
 package server
 
 import (
+	"ObservabilityServer/internal/auth"
 	"ObservabilityServer/internal/model"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -18,6 +20,11 @@ func (s *Server) RegisterRoutes() http.Handler {
 	e.GET("/", s.HelloWorldHandler)
 
 	e.GET("/health", s.healthHandler)
+
+	authV1 := e.Group("/api/auth")
+
+	authV1.POST("/owners", s.createOwnerHandler)
+	authV1.POST("/owners/:id/keys", s.createKeyHandler)
 
 	apiV1 := e.Group("/api/v1", s.APIKeyMiddleware)
 
@@ -38,6 +45,62 @@ func (s *Server) HelloWorldHandler(c echo.Context) error {
 
 func (s *Server) healthHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, s.db.Health())
+}
+
+func (s *Server) createOwnerHandler(c echo.Context) error {
+	var ownerDTO model.OwnerDTO
+	if err := c.Bind(&ownerDTO); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err)
+	}
+	if err := c.Validate(&ownerDTO); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err)
+	}
+
+	id, err := s.db.CreateOwner(model.NewOwnerData{
+		Name: ownerDTO.Name,
+	})
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": fmt.Sprintf("Owner could not be created: %v", err),
+		})
+	}
+
+	return c.JSON(http.StatusCreated, map[string]any{
+		"message": "Owner created",
+		"id":      id,
+	})
+}
+
+func (s *Server) createKeyHandler(c echo.Context) error {
+	var apiKeyDTO model.NewApiKeyDTO
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err)
+	}
+	apiKeyDTO.OwnerId = id
+	if err := c.Validate(&apiKeyDTO); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err)
+	}
+
+	key, err := auth.GenerateApiKey()
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	err = s.db.CreateApiKey(model.NewApiKeyData{
+		Key:     auth.HashApiKey(key),
+		OwnerId: apiKeyDTO.OwnerId,
+	})
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": fmt.Sprintf("ApiKey could not be created: %v", err),
+		})
+	}
+
+	return c.JSON(http.StatusCreated, map[string]string{
+		"message": "Api Key created",
+		"key":     key,
+	})
 }
 
 func (s *Server) createSessionHandler(c echo.Context) error {

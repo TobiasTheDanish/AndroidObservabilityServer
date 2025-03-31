@@ -94,13 +94,23 @@ func TestValidateApiKey(t *testing.T) {
 		t.Fatalf("Could not generate api key: %v\n", err)
 	}
 
+	hash := auth.HashApiKey(key)
+
 	srv.CreateApiKey(model.NewApiKeyData{
-		Key:     key,
-		OwnerID: ownerId,
+		Key:     hash,
+		OwnerId: ownerId,
 	})
 
-	if !srv.ValidateApiKey(key) {
+	if !srv.ValidateApiKey(hash) {
 		t.Fatalf("ValidateApiKey returned false with key: %s\n", key)
+	}
+
+	id, err := srv.GetOwnerId(hash)
+	if err != nil {
+		t.Fatalf("GetOwnerId failed with error: %v\n", err)
+	}
+	if id != ownerId {
+		t.Fatalf("Owner ids did not match. expected %d, but got %d\n", ownerId, id)
 	}
 }
 
