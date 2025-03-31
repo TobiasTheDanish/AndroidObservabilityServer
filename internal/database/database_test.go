@@ -1,6 +1,7 @@
 package database
 
 import (
+	"ObservabilityServer/internal/auth"
 	"ObservabilityServer/internal/model"
 	"context"
 	"log"
@@ -74,12 +75,44 @@ func TestNew(t *testing.T) {
 	}
 }
 
+func TestCreateOwner(t *testing.T) {
+	srv := New()
+
+	ownerId, err := srv.CreateOwner(model.NewOwnerData{Name: "TestOwner"})
+	if err != nil || ownerId == -1 {
+		t.Fatalf("Creating owner failed. %v\n", err)
+	}
+}
+
+func TestValidateApiKey(t *testing.T) {
+	srv := New()
+
+	ownerId, _ := srv.CreateOwner(model.NewOwnerData{Name: "TestOwner"})
+
+	key, err := auth.GenerateApiKey()
+	if err != nil {
+		t.Fatalf("Could not generate api key: %v\n", err)
+	}
+
+	srv.CreateApiKey(model.NewApiKeyData{
+		Key:     key,
+		OwnerID: ownerId,
+	})
+
+	if !srv.ValidateApiKey(key) {
+		t.Fatalf("ValidateApiKey returned false with key: %s\n", key)
+	}
+}
+
 func TestCreateSession(t *testing.T) {
 	srv := New()
+
+	ownerId, _ := srv.CreateOwner(model.NewOwnerData{Name: "TestOwner"})
 
 	data := model.NewSessionData{
 		Id:             "TestSession123",
 		InstallationId: "InstallationIdForTestSession123",
+		OwnerId:        ownerId,
 		CreatedAt:      1,
 		Crashed:        false,
 	}
@@ -98,9 +131,12 @@ func TestCreateSession(t *testing.T) {
 func TestCreateEvent(t *testing.T) {
 	srv := New()
 
+	ownerId, _ := srv.CreateOwner(model.NewOwnerData{Name: "TestOwner"})
+
 	sessionData := model.NewSessionData{
 		Id:             "TestSession1234",
 		InstallationId: "InstallationIdForTestSession123",
+		OwnerId:        ownerId,
 		CreatedAt:      1,
 		Crashed:        false,
 	}
@@ -110,6 +146,7 @@ func TestCreateEvent(t *testing.T) {
 	eventData := model.NewEventData{
 		Id:             "TestEvent",
 		SessionId:      sessionData.Id,
+		OwnerId:        ownerId,
 		Type:           "TestEvent",
 		SerializedData: "{}",
 		CreatedAt:      2,
@@ -124,9 +161,12 @@ func TestCreateEvent(t *testing.T) {
 func TestCreateTrace(t *testing.T) {
 	srv := New()
 
+	ownerId, _ := srv.CreateOwner(model.NewOwnerData{Name: "TestOwner"})
+
 	sessionData := model.NewSessionData{
 		Id:             "TestSession12345",
 		InstallationId: "InstallationIdForTestSession123",
+		OwnerId:        ownerId,
 		CreatedAt:      1,
 		Crashed:        false,
 	}
@@ -138,6 +178,7 @@ func TestCreateTrace(t *testing.T) {
 		SessionId:    sessionData.Id,
 		GroupId:      "TestGroup",
 		ParentId:     "",
+		OwnerId:      ownerId,
 		Name:         "TraceTest",
 		Status:       "Ok",
 		ErrorMessage: "",

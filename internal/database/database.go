@@ -16,6 +16,8 @@ import (
 
 // Service represents a service that interacts with a database.
 type Service interface {
+	CreateOwner(data model.NewOwnerData) (int, error)
+	CreateApiKey(data model.NewApiKeyData) error
 	CreateSession(data model.NewSessionData) error
 	CreateEvent(data model.NewEventData) error
 	CreateTrace(data model.NewTraceData) error
@@ -70,6 +72,35 @@ func New() Service {
 	}
 
 	return dbInstance
+}
+
+func (s *service) CreateOwner(data model.NewOwnerData) (int, error) {
+	query := "INSERT INTO public.ob_owners(name) VALUES ($1) RETURNING id"
+
+	var id int
+	err := s.db.QueryRow(query, data.Name).Scan(&id)
+
+	return id, err
+}
+
+func (s *service) CreateApiKey(data model.NewApiKeyData) error {
+	query := "INSERT INTO public.ob_api_keys(key, owner_id) VALUES ($1, $2)"
+
+	res, err := s.db.Exec(query, data.Key, data.OwnerID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected != 1 {
+		return fmt.Errorf("Expected 1 api key to be inserted but was %d", rowsAffected)
+	}
+
+	return nil
 }
 
 func (s *service) CreateSession(data model.NewSessionData) error {
@@ -141,12 +172,24 @@ func (s *service) CreateTrace(data model.NewTraceData) error {
 }
 
 func (s *service) ValidateApiKey(apiKey string) bool {
+	query := "SELECT EXISTS(SELECT 1 FROM public.ob_api_keys WHERE key = $1)"
 
-	return false
+	var exists bool
+	if err := s.db.QueryRow(query, apiKey).Scan(&exists); err != nil {
+		log.Printf("Error validating api key: %v\n", err)
+		return false
+	}
+
+	return exists
 }
 
 func (s *service) GetOwnerId(apiKey string) (int, error) {
+	query := "SELECT owner_id FROM public.ob_api_keys WHERE key = $1"
 
+	var ownerId int
+	if err := s.db.QueryRow(query, apiKey).Scan(&ownerId); err != nil {
+		return -1, err
+	}
 	return -1, nil
 }
 
