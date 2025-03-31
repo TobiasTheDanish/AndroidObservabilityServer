@@ -138,6 +138,30 @@ func TestCreateSession(t *testing.T) {
 	}
 }
 
+func TestMarkSessionCrashed(t *testing.T) {
+	srv := New()
+
+	ownerId, _ := srv.CreateOwner(model.NewOwnerData{Name: "TestOwner"})
+
+	data := model.NewSessionData{
+		Id:             "TestSession223",
+		InstallationId: "InstallationIdForTestSession123",
+		OwnerId:        ownerId,
+		CreatedAt:      1,
+		Crashed:        false,
+	}
+
+	err := srv.CreateSession(data)
+	if err != nil {
+		t.Fatalf("CreateSession failed: %v\n", err)
+	}
+
+	err = srv.MarkSessionCrashed(data.Id, ownerId)
+	if err != nil {
+		t.Fatalf("MarkSessionCrashed failed: %v\n", err)
+	}
+}
+
 func TestCreateEvent(t *testing.T) {
 	srv := New()
 

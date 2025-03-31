@@ -4,6 +4,7 @@ import (
 	"ObservabilityServer/internal/auth"
 	"ObservabilityServer/internal/model"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -29,6 +30,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	apiV1 := e.Group("/api/v1", s.APIKeyMiddleware)
 
 	apiV1.POST("/sessions", s.createSessionHandler)
+	apiV1.POST("/sessions/:id/crash", s.sessionCrashHandler)
 	apiV1.POST("/events", s.createEventHandler)
 	apiV1.POST("/traces", s.createTraceHandler)
 
@@ -135,6 +137,22 @@ func (s *Server) createSessionHandler(c echo.Context) error {
 	return c.JSON(http.StatusCreated, map[string]string{
 		"message": "Session created",
 	})
+}
+
+func (s *Server) sessionCrashHandler(c echo.Context) error {
+	ownerId := c.Get("ownerId")
+	if ownerId == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Missing owner id")
+	}
+
+	sessionId := c.Param("id")
+	err := s.db.MarkSessionCrashed(sessionId, ownerId.(int))
+	if err != nil {
+		log.Printf("Error marking session with id %s as crashed: %v\n", sessionId, err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "Could not mark session as crashed")
+	}
+
+	return c.JSON(http.StatusCreated, map[string]string{"message": "Session marked as crashed"})
 }
 
 func (s *Server) createEventHandler(c echo.Context) error {

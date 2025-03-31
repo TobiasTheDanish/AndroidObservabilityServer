@@ -18,7 +18,9 @@ import (
 type Service interface {
 	CreateOwner(data model.NewOwnerData) (int, error)
 	CreateApiKey(data model.NewApiKeyData) error
+
 	CreateSession(data model.NewSessionData) error
+	MarkSessionCrashed(id string, ownerId int) error
 	CreateEvent(data model.NewEventData) error
 	CreateTrace(data model.NewTraceData) error
 
@@ -101,6 +103,31 @@ func (s *service) CreateApiKey(data model.NewApiKeyData) error {
 	}
 
 	return nil
+}
+
+func (s *service) MarkSessionCrashed(id string, ownerId int) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil
+	}
+	query := "UPDATE public.ob_sessions SET crashed=1 WHERE id=$1 AND owner_id=$2"
+
+	res, err := tx.Exec(query, id, ownerId)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected != 1 {
+		tx.Rollback()
+		return fmt.Errorf("Expected 1 session to be updated but was %d. Rolling back", rowsAffected)
+	}
+
+	return tx.Commit()
 }
 
 func (s *service) CreateSession(data model.NewSessionData) error {
