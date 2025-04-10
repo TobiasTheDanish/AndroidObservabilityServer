@@ -12,6 +12,9 @@ import (
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/joho/godotenv/autoload"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/postgres"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // Service represents a service that interacts with a database.
@@ -54,6 +57,47 @@ var (
 	dbInstance *service
 )
 
+func SetupTestDatabase() (func(context.Context, ...testcontainers.TerminateOption) error, error) {
+	var (
+		dbName = "routes_database"
+		dbPwd  = "password"
+		dbUser = "user"
+	)
+
+	dbContainer, err := postgres.Run(
+		context.Background(),
+		"postgres:latest",
+		postgres.WithDatabase(dbName),
+		postgres.WithUsername(dbUser),
+		postgres.WithPassword(dbPwd),
+		testcontainers.WithWaitStrategy(
+			wait.ForLog("database system is ready to accept connections").
+				WithOccurrence(2).
+				WithStartupTimeout(5*time.Second)),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	database = dbName
+	password = dbPwd
+	username = dbUser
+	dbHost, err := dbContainer.Host(context.Background())
+	if err != nil {
+		return dbContainer.Terminate, err
+	}
+
+	dbPort, err := dbContainer.MappedPort(context.Background(), "5432/tcp")
+	if err != nil {
+		return dbContainer.Terminate, err
+	}
+
+	host = dbHost
+	port = dbPort.Port()
+
+	return dbContainer.Terminate, err
+}
+
 func New() Service {
 	// Reuse Connection
 	if dbInstance != nil {
@@ -63,6 +107,7 @@ func New() Service {
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {
 		log.Fatal(err)
+		return nil
 	}
 	dbInstance = &service{
 		db: db,
@@ -283,7 +328,7 @@ func (s *service) Close() error {
 func (s *service) init() error {
 	tx, err := s.db.Begin()
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to begin transaction: %v\n", err)
 	}
 
 	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS public.__db_version__ ( current_version INTEGER )")

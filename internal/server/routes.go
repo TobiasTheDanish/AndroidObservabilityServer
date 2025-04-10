@@ -29,6 +29,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	apiV1 := e.Group("/api/v1", s.APIKeyMiddleware)
 
+	apiV1.POST("/collection", s.createCollectionHandler)
 	apiV1.POST("/sessions", s.createSessionHandler)
 	apiV1.POST("/sessions/:id/crash", s.sessionCrashHandler)
 	apiV1.POST("/events", s.createEventHandler)
@@ -102,6 +103,74 @@ func (s *Server) createKeyHandler(c echo.Context) error {
 	return c.JSON(http.StatusCreated, map[string]string{
 		"message": "Api Key created",
 		"key":     key,
+	})
+}
+
+func (s *Server) createCollectionHandler(c echo.Context) error {
+	ownerId := c.Get("ownerId")
+	if ownerId == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Missing owner id")
+	}
+
+	var collectionData model.CollectionDTO
+	if err := c.Bind(&collectionData); err != nil {
+		log.Println(err)
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": fmt.Sprintf("Body could not be parsed: %v", err),
+		})
+	}
+
+	go func() {
+		if collectionData.Session != nil {
+			sessionDTO := collectionData.Session
+
+			err := s.db.CreateSession(model.NewSessionData{
+				Id:             sessionDTO.Id,
+				InstallationId: sessionDTO.InstallationId,
+				OwnerId:        ownerId.(int),
+				CreatedAt:      sessionDTO.CreatedAt,
+				Crashed:        sessionDTO.Crashed,
+			})
+			if err != nil {
+				log.Printf("Error creating session (%v): %v\n", sessionDTO, err)
+			}
+		}
+
+		for _, e := range collectionData.Events {
+			err := s.db.CreateEvent(model.NewEventData{
+				Id:             e.Id,
+				SessionId:      e.SessionId,
+				OwnerId:        ownerId.(int),
+				SerializedData: e.SerializedData,
+				Type:           e.Type,
+				CreatedAt:      e.CreatedAt,
+			})
+			if err != nil {
+				log.Printf("Error creating event (%v): %v\n", e, err)
+			}
+		}
+
+		for _, t := range collectionData.Traces {
+			err := s.db.CreateTrace(model.NewTraceData{
+				TraceId:      t.TraceId,
+				SessionId:    t.SessionId,
+				ParentId:     t.ParentId,
+				OwnerId:      ownerId.(int),
+				Name:         t.Name,
+				Status:       t.Status,
+				ErrorMessage: t.ErrorMessage,
+				StartedAt:    t.StartedAt,
+				EndedAt:      t.EndedAt,
+				HasEnded:     t.HasEnded,
+			})
+			if err != nil {
+				log.Printf("Error creating trace (%v): %v\n", t, err)
+			}
+		}
+	}()
+
+	return c.JSON(http.StatusAccepted, map[string]string{
+		"message": "Creation of collection have been started",
 	})
 }
 
