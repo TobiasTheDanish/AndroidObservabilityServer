@@ -22,6 +22,7 @@ type Service interface {
 	CreateOwner(data model.NewOwnerData) (int, error)
 	CreateApiKey(data model.NewApiKeyData) error
 
+	CreateInstallation(data model.NewInstallationData) error
 	CreateSession(data model.NewSessionData) error
 	MarkSessionCrashed(id string, ownerId int) error
 	CreateEvent(data model.NewEventData) error
@@ -173,6 +174,24 @@ func (s *service) MarkSessionCrashed(id string, ownerId int) error {
 	}
 
 	return tx.Commit()
+}
+
+func (s *service) CreateInstallation(data model.NewInstallationData) error {
+	res, err := s.db.Exec("INSERT INTO public.ob_installations (id, owner_id, sdk_version, model, brand) VALUES ($1, $2, $3, $4, $5)", data.Id, data.OwnerId, data.SdkVersion, data.Model, data.Brand)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected != 1 {
+		return fmt.Errorf("Expected 1 session to be inserted but was %d", rowsAffected)
+	}
+
+	return nil
 }
 
 func (s *service) CreateSession(data model.NewSessionData) error {
@@ -367,6 +386,12 @@ func createTables(tx *sql.Tx) error {
 	}
 
 	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS public.ob_api_keys (key TEXT PRIMARY KEY, owner_id INTEGER NOT NULL, FOREIGN KEY (owner_id) REFERENCES public.ob_owners (id) ON DELETE CASCADE ON UPDATE NO ACTION)")
+
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS public.ob_installations (id TEXT PRIMARY KEY, sdk_version INTEGER DEFAULT -1, model TEXT DEFAULT '', brand TEXT DEFAULT '', owner_id INTEGER NOT NULL, FOREIGN KEY (owner_id) REFERENCES public.ob_owners (id) ON DELETE CASCADE ON UPDATE NO ACTION)")
 
 	if err != nil {
 		return err

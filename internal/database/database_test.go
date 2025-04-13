@@ -67,6 +67,30 @@ func TestValidateApiKey(t *testing.T) {
 	}
 }
 
+func TestCreateInstallation(t *testing.T) {
+	srv := New()
+
+	ownerId, _ := srv.CreateOwner(model.NewOwnerData{Name: "TestOwner"})
+
+	data := model.NewInstallationData{
+		Id:         "TestInstallation123",
+		OwnerId:    ownerId,
+		SdkVersion: 31,
+		Model:      "MT9556",
+		Brand:      "Newland",
+	}
+
+	err := srv.CreateInstallation(data)
+	if err != nil {
+		t.Fatalf("CreateInstallation failed: %v\n", err)
+	}
+
+	err = srv.CreateInstallation(data)
+	if err == nil {
+		t.Fatalf("CreateInstallation was expected to fail, but didnt!")
+	}
+}
+
 func TestCreateSession(t *testing.T) {
 	srv := New()
 
