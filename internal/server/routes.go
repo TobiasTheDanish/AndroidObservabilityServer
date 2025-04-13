@@ -29,6 +29,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	apiV1 := e.Group("/api/v1", s.APIKeyMiddleware)
 
+	apiV1.POST("/installations", s.createInstallationHandler)
 	apiV1.POST("/collection", s.createCollectionHandler)
 	apiV1.POST("/sessions", s.createSessionHandler)
 	apiV1.POST("/sessions/:id/crash", s.sessionCrashHandler)
@@ -103,6 +104,44 @@ func (s *Server) createKeyHandler(c echo.Context) error {
 	return c.JSON(http.StatusCreated, map[string]string{
 		"message": "Api Key created",
 		"key":     key,
+	})
+}
+
+func (s *Server) createInstallationHandler(c echo.Context) error {
+	ownerId := c.Get("ownerId")
+	if ownerId == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Missing owner id")
+	}
+
+	var installationDTO model.InstallationDTO
+	if err := c.Bind(&installationDTO); err != nil {
+		log.Println(err)
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": fmt.Sprintf("Body could not be parsed: %v", err),
+		})
+	}
+	if err := c.Validate(&installationDTO); err != nil {
+		log.Println(err)
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": fmt.Sprintf("Body validation failed: %v", err),
+		})
+	}
+
+	err := s.db.CreateInstallation(model.NewInstallationData{
+		Id:         installationDTO.Id,
+		OwnerId:    ownerId.(int),
+		SdkVersion: installationDTO.SdkVersion,
+		Model:      installationDTO.Model,
+		Brand:      installationDTO.Brand,
+	})
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": fmt.Sprintf("Installation could not be created: %v", err),
+		})
+	}
+
+	return c.JSON(http.StatusCreated, map[string]string{
+		"message": "Installation created",
 	})
 }
 
