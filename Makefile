@@ -7,7 +7,7 @@ build:
 	@echo "Building..."
 	
 	
-	@go build -o main cmd/api/main.go
+	@go build -o api cmd/api/main.go
 
 # Run the application
 run:
@@ -60,5 +60,11 @@ watch:
                 exit 1; \
             fi; \
         fi
+
+build-cli:
+	@echo "Building cli..."
+	
+	@go build -o cli cmd/cli/main.go
+
 
 .PHONY: all build run test clean watch docker-run docker-down itest

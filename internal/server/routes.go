@@ -22,7 +22,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	e.GET("/health", s.healthHandler)
 
-	authV1 := e.Group("/api/auth")
+	authV1 := e.Group("/api/auth", s.AuthMiddleware)
 
 	authV1.POST("/owners", s.createOwnerHandler)
 	authV1.POST("/owners/:id/keys", s.createKeyHandler)
