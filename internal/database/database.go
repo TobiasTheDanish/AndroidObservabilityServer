@@ -397,13 +397,13 @@ func createTables(tx *sql.Tx) error {
 		return err
 	}
 
-	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS public.ob_sessions (id TEXT PRIMARY KEY, installation_id TEXT NOT NULL, created_at INTEGER NOT NULL, crashed SMALLINT NOT NULL DEFAULT 0, owner_id INTEGER NOT NULL, FOREIGN KEY (owner_id) REFERENCES public.ob_owners (id) ON DELETE CASCADE ON UPDATE NO ACTION)")
+	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS public.ob_sessions (id TEXT PRIMARY KEY, installation_id TEXT NOT NULL, created_at BIGINT NOT NULL, crashed SMALLINT NOT NULL DEFAULT 0, owner_id INTEGER NOT NULL, FOREIGN KEY (owner_id) REFERENCES public.ob_owners (id) ON DELETE CASCADE ON UPDATE NO ACTION)")
 
 	if err != nil {
 		return err
 	}
 
-	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS public.ob_events (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, created_at INTEGER NOT NULL, type TEXT NOT NULL, serialized_data TEXT DEFAULT '', owner_id INTEGER NOT NULL, FOREIGN KEY (owner_id) REFERENCES public.ob_owners (id) ON DELETE CASCADE ON UPDATE NO ACTION, FOREIGN KEY (session_id) REFERENCES public.ob_sessions (id) ON DELETE NO ACTION ON UPDATE NO ACTION)")
+	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS public.ob_events (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, created_at BIGINT NOT NULL, type TEXT NOT NULL, serialized_data TEXT DEFAULT '', owner_id INTEGER NOT NULL, FOREIGN KEY (owner_id) REFERENCES public.ob_owners (id) ON DELETE CASCADE ON UPDATE NO ACTION, FOREIGN KEY (session_id) REFERENCES public.ob_sessions (id) ON DELETE NO ACTION ON UPDATE NO ACTION)")
 
 	if err != nil {
 		return err
