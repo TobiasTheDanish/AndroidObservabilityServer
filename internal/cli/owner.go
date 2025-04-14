@@ -31,7 +31,9 @@ func (c *ownerCommand) Init(args []string) error {
 	return c.fs.Parse(args)
 }
 
+// TODO: add support for list command
 func (c *ownerCommand) Run() {
+
 	if !(c.create || c.list) {
 		fmt.Println("Missing create or list flag")
 		c.fs.Usage()
