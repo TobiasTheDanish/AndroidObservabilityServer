@@ -14,7 +14,7 @@ services:
   pg_admin:
     image: dpage/pgadmin4
     environment:
-      PGADMIN_DEFAULT_EMAIL: t.hc199811@gmail.com
+      PGADMIN_DEFAULT_EMAIL: ${OBSERVE_DB_EMAIL}
       PGADMIN_DEFAULT_PASSWORD: ${OBSERVE_DB_PASSWORD}
       POSTGRES_DB: ${OBSERVE_DB_DATABASE}
       POSTGRES_USER: ${OBSERVE_DB_USERNAME}
