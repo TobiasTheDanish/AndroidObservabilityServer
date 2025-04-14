@@ -27,8 +27,8 @@ tmp/
 
 # Project build
 main
-api
-cli
+observe_api
+observe_cli
 *templ.go
 
 # OS X generated file
