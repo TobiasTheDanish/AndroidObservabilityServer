@@ -158,6 +158,12 @@ func (s *Server) createCollectionHandler(c echo.Context) error {
 			"message": fmt.Sprintf("Body could not be parsed: %v", err),
 		})
 	}
+	if err := c.Validate(&collectionData); err != nil {
+		log.Println(err)
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": fmt.Sprintf("Body validation failed: %v", err),
+		})
+	}
 
 	go func() {
 		if collectionData.Session != nil {
