@@ -32,6 +32,7 @@ func (c Commands) Usage() {
 func ParseFlags(args []string) (bool, Command) {
 	cmds := Commands{
 		OwnerCommand(),
+		ApiKeyCommand(),
 	}
 
 	if len(args) < 1 {
@@ -41,6 +42,11 @@ func ParseFlags(args []string) (bool, Command) {
 	}
 
 	subCmd := args[0]
+
+	if subCmd == "help" {
+		cmds.Usage()
+		return false, nil
+	}
 
 	for _, cmd := range cmds {
 		if cmd.Name() == subCmd {
