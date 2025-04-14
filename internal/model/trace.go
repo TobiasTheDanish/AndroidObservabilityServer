@@ -22,7 +22,7 @@ type TraceDTO struct {
 	Name         string `json:"name" validate:"required"`
 	Status       string `json:"status" validate:"required,oneof=Ok Error"`
 	ErrorMessage string `json:"errorMessage" validate:"required_if=Status Error"`
-	StartedAt    int64  `json:"startedAt" validate:"required"`
-	EndedAt      int64  `json:"endedAt" validate:"required"`
+	StartedAt    int64  `json:"startTime" validate:"required"`
+	EndedAt      int64  `json:"endTime" validate:"required"`
 	HasEnded     bool   `json:"hasEnded"`
 }
