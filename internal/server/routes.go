@@ -158,11 +158,30 @@ func (s *Server) createCollectionHandler(c echo.Context) error {
 			"message": fmt.Sprintf("Body could not be parsed: %v", err),
 		})
 	}
-	if err := c.Validate(&collectionData); err != nil {
+	if err := c.Validate(collectionData); err != nil {
 		log.Println(err)
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"message": fmt.Sprintf("Body validation failed: %v", err),
+			"path":    "session",
 		})
+	}
+
+	for i, e := range collectionData.Events {
+		if err := c.Validate(&e); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"message": fmt.Sprintf("Body validation failed: %v", err),
+				"path":    fmt.Sprintf("events[%d]", i),
+			})
+		}
+	}
+
+	for i, e := range collectionData.Traces {
+		if err := c.Validate(&e); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"message": fmt.Sprintf("Body validation failed: %v", err),
+				"path":    fmt.Sprintf("traces[%d]", i),
+			})
+		}
 	}
 
 	go func() {

@@ -103,11 +103,6 @@ func TestCreateCollection(t *testing.T) {
 		t.Errorf("createCollectionHandler() error = %v", err)
 		return
 	}
-	if resp.Code != http.StatusAccepted {
-		t.Errorf("createCollectionHandler() wrong status code = %v", resp.Code)
-		return
-	}
-
 	expected := map[string]string{"message": "Creation of collection have been started"}
 	var actual map[string]string
 	// Decode the response body into the actual map
@@ -115,6 +110,223 @@ func TestCreateCollection(t *testing.T) {
 		t.Errorf("createCollectionHandler() error decoding response body: %v", err)
 		return
 	}
+
+	t.Logf("Response body = %v\n", actual)
+
+	if resp.Code != http.StatusAccepted {
+		t.Errorf("createCollectionHandler() wrong status code = %v", resp.Code)
+		return
+	}
+
+	// Compare the decoded response with the expected value
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("createCollectionHandler() wrong response body. expected = %v, actual = %v", expected, actual)
+		return
+	}
+}
+
+func TestCreateCollectionInvalidSession(t *testing.T) {
+	collection := model.CollectionDTO{
+		Session: &model.SessionDTO{
+			Id:             "1234",
+			InstallationId: "1234",
+			CreatedAt:      17000000,
+			Crashed:        false,
+		},
+		Events: make([]model.EventDTO, 0, 0),
+		Traces: make([]model.TraceDTO, 0, 0),
+	}
+	body, err := json.Marshal(collection)
+	if err != nil {
+		t.Fatalf("Could not marshal collectionDTO: %v", err)
+	}
+	reader := bytes.NewReader(body)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/collection", reader)
+	resp := httptest.NewRecorder()
+	req.Header.Set("Content-type", "application/json")
+
+	e.Validator = NewValidator()
+	c := e.NewContext(req, resp)
+	s := &Server{
+		db: db,
+	}
+
+	c.Set("ownerId", ownerId)
+
+	err = s.createCollectionHandler(c)
+	if err != nil {
+		t.Errorf("createCollectionHandler() error = %v", err)
+		return
+	}
+	expected := map[string]string{
+		"message": "Body validation failed: Key: 'CollectionDTO.Session.Id' Error:Field validation for 'Id' failed on the 'uuid' tag",
+		"path":    "session",
+	}
+	var actual map[string]string
+	// Decode the response body into the actual map
+	if err := json.NewDecoder(resp.Body).Decode(&actual); err != nil {
+		t.Errorf("createCollectionHandler() error decoding response body: %v", err)
+		return
+	}
+
+	if resp.Code != http.StatusBadRequest {
+		t.Errorf("createCollectionHandler() wrong status code = %v", resp.Code)
+		return
+	}
+
+	// Compare the decoded response with the expected value
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("createCollectionHandler() wrong response body. expected = %v, actual = %v", expected, actual)
+		return
+	}
+}
+
+func TestCreateCollectionInvalidEvent(t *testing.T) {
+	collection := model.CollectionDTO{
+		Session: &model.SessionDTO{
+			Id:             "f9bc714c-bb1a-4c47-b2a5-9b46b8568259",
+			InstallationId: "1234",
+			CreatedAt:      17000000,
+			Crashed:        false,
+		},
+		Events: []model.EventDTO{
+			{
+				Id:             "55a7a1f2-8caa-4d13-b792-0d9e533f8705",
+				SessionId:      "f9bc714c-bb1a-4c47-b2a5-9b46b8568259",
+				Type:           "lifecycle_event",
+				SerializedData: "{\"message\":\"hello\"}",
+				CreatedAt:      1743194265,
+			},
+			{
+				Id:             "55a7a1f2",
+				SessionId:      "f9bc714c-bb1a-4c47-b2a5-9b46b8568259",
+				Type:           "lifecycle_event",
+				SerializedData: "{\"message\":\"hello\"}",
+				CreatedAt:      1743194265,
+			},
+		},
+		Traces: make([]model.TraceDTO, 0, 0),
+	}
+	body, err := json.Marshal(collection)
+	if err != nil {
+		t.Fatalf("Could not marshal collectionDTO: %v", err)
+	}
+	reader := bytes.NewReader(body)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/collection", reader)
+	resp := httptest.NewRecorder()
+	req.Header.Set("Content-type", "application/json")
+
+	e.Validator = NewValidator()
+	c := e.NewContext(req, resp)
+	s := &Server{
+		db: db,
+	}
+
+	c.Set("ownerId", ownerId)
+
+	err = s.createCollectionHandler(c)
+	if err != nil {
+		t.Errorf("createCollectionHandler() error = %v", err)
+		return
+	}
+	expected := map[string]string{
+		"message": "Body validation failed: Key: 'EventDTO.Id' Error:Field validation for 'Id' failed on the 'uuid' tag",
+		"path":    "events[1]",
+	}
+	var actual map[string]string
+	// Decode the response body into the actual map
+	if err := json.NewDecoder(resp.Body).Decode(&actual); err != nil {
+		t.Errorf("createCollectionHandler() error decoding response body: %v", err)
+		return
+	}
+
+	t.Logf("body = %v\n", actual)
+
+	if resp.Code != http.StatusBadRequest {
+		t.Errorf("createCollectionHandler() wrong status code = %v", resp.Code)
+		return
+	}
+
+	// Compare the decoded response with the expected value
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("createCollectionHandler() wrong response body. expected = %v, actual = %v", expected, actual)
+		return
+	}
+}
+
+func TestCreateCollectionInvalidTrace(t *testing.T) {
+	collection := model.CollectionDTO{
+		Session: nil,
+		Events:  []model.EventDTO{},
+		Traces: []model.TraceDTO{
+			{
+				TraceId:   "2bea6cb8-b784-470f-969f-ef45d38c6aa7",
+				SessionId: "f9bc714c-bb1a-4c47-b2a5-9b46b8568259",
+				GroupId:   "a829bff3-7d17-4e88-b360-4279fbe4fe4c",
+				Name:      "TestParentTrace",
+				Status:    "Ok",
+				StartedAt: 1743194275,
+				EndedAt:   1743195275,
+				HasEnded:  true,
+			},
+			{
+				TraceId:   "2bea6cb8-b784-470f-969f-ef45d38c6aa7",
+				SessionId: "f9bc714c-bb1a-4c47-b2a5-9b46b8568259",
+				GroupId:   "a829bff3-7d17-4e88-b360-4279fbe4fe4c",
+				Name:      "TestParentTrace",
+				Status:    "Error",
+				StartedAt: 1743194275,
+				EndedAt:   1743195275,
+				HasEnded:  true,
+			},
+		},
+	}
+	body, err := json.Marshal(collection)
+	if err != nil {
+		t.Fatalf("Could not marshal collectionDTO: %v", err)
+	}
+	reader := bytes.NewReader(body)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/collection", reader)
+	resp := httptest.NewRecorder()
+	req.Header.Set("Content-type", "application/json")
+
+	e.Validator = NewValidator()
+	c := e.NewContext(req, resp)
+	s := &Server{
+		db: db,
+	}
+
+	c.Set("ownerId", ownerId)
+
+	err = s.createCollectionHandler(c)
+	if err != nil {
+		t.Errorf("createCollectionHandler() error = %v", err)
+		return
+	}
+	expected := map[string]string{
+		"message": "Body validation failed: Key: 'TraceDTO.ErrorMessage' Error:Field validation for 'ErrorMessage' failed on the 'required_if' tag",
+		"path":    "traces[1]",
+	}
+	var actual map[string]string
+	// Decode the response body into the actual map
+	if err := json.NewDecoder(resp.Body).Decode(&actual); err != nil {
+		t.Errorf("createCollectionHandler() error decoding response body: %v", err)
+		return
+	}
+
+	t.Logf("body = %v\n", actual)
+
+	if resp.Code != http.StatusBadRequest {
+		t.Errorf("createCollectionHandler() wrong status code = %v", resp.Code)
+		return
+	}
+
 	// Compare the decoded response with the expected value
 	if !reflect.DeepEqual(expected, actual) {
 		t.Errorf("createCollectionHandler() wrong response body. expected = %v, actual = %v", expected, actual)
