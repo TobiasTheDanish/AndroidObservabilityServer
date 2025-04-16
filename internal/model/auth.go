@@ -1,6 +1,6 @@
 package model
 
-type NewOwnerData struct {
+type NewApplicationData struct {
 	Name string
 }
 
@@ -9,15 +9,15 @@ type OwnerDTO struct {
 }
 
 type NewApiKeyData struct {
-	Key     string
-	OwnerId int
+	Key   string
+	AppId int
 }
 
 type NewApiKeyDTO struct {
-	OwnerId int `param:"ownerId" validate:"required"`
+	AppId int `param:"ownerId" validate:"required"`
 }
 
 type ApiKeyDTO struct {
-	Key     string `json:"id" validate:"required"`
-	OwnerId int    `json:"ownerId" validate:"required"`
+	Key   string `json:"id" validate:"required"`
+	AppId int    `json:"ownerId" validate:"required"`
 }

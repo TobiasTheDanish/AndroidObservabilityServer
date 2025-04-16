@@ -10,6 +10,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/testcontainers/testcontainers-go"
@@ -19,7 +22,7 @@ import (
 
 // Service represents a service that interacts with a database.
 type Service interface {
-	CreateOwner(data model.NewOwnerData) (int, error)
+	CreateApplication(data model.NewApplicationData) (int, error)
 	CreateApiKey(data model.NewApiKeyData) error
 
 	CreateInstallation(data model.NewInstallationData) error
@@ -54,7 +57,7 @@ var (
 	port       = os.Getenv("OBSERVE_DB_PORT")
 	host       = os.Getenv("OBSERVE_DB_HOST")
 	schema     = os.Getenv("OBSERVE_DB_SCHEMA")
-	version    = os.Getenv("OBSERVE_DB_VERSION")
+	migrations = os.Getenv("MIGRATIONS_PATH")
 	dbInstance *service
 )
 
@@ -96,7 +99,19 @@ func SetupTestDatabase() (func(context.Context, ...testcontainers.TerminateOptio
 	host = dbHost
 	port = dbPort.Port()
 
-	return dbContainer.Terminate, err
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&search_path=%s", username, password, host, port, database, schema)
+	sourcePath := fmt.Sprintf("file://../../migrations")
+
+	m, err := migrate.New(sourcePath, connStr)
+	if err != nil {
+		return dbContainer.Terminate, fmt.Errorf("Error creating migrate instance: %v", err)
+	}
+	err = m.Up()
+	if err != nil && err != migrate.ErrNoChange {
+		return dbContainer.Terminate, fmt.Errorf("Error migrating up: %v", err)
+	}
+
+	return dbContainer.Terminate, nil
 }
 
 func New() Service {
@@ -114,16 +129,11 @@ func New() Service {
 		db: db,
 	}
 
-	err = dbInstance.init()
-	if err != nil {
-		log.Fatalf("Could not init db: %v\n", err)
-	}
-
 	return dbInstance
 }
 
-func (s *service) CreateOwner(data model.NewOwnerData) (int, error) {
-	query := "INSERT INTO public.ob_owners(name) VALUES ($1) RETURNING id"
+func (s *service) CreateApplication(data model.NewApplicationData) (int, error) {
+	query := "INSERT INTO public.ob_applications(name) VALUES ($1) RETURNING id"
 
 	var id int
 	err := s.db.QueryRow(query, data.Name).Scan(&id)
@@ -132,9 +142,9 @@ func (s *service) CreateOwner(data model.NewOwnerData) (int, error) {
 }
 
 func (s *service) CreateApiKey(data model.NewApiKeyData) error {
-	query := "INSERT INTO public.ob_api_keys(key, owner_id) VALUES ($1, $2)"
+	query := "INSERT INTO public.ob_api_keys(key, app_id) VALUES ($1, $2)"
 
-	res, err := s.db.Exec(query, data.Key, data.OwnerId)
+	res, err := s.db.Exec(query, data.Key, data.AppId)
 	if err != nil {
 		return err
 	}
@@ -156,7 +166,7 @@ func (s *service) MarkSessionCrashed(id string, ownerId int) error {
 	if err != nil {
 		return nil
 	}
-	query := "UPDATE public.ob_sessions SET crashed=1 WHERE id=$1 AND owner_id=$2"
+	query := "UPDATE public.ob_sessions SET crashed=1 WHERE id=$1 AND app_id=$2"
 
 	res, err := tx.Exec(query, id, ownerId)
 	if err != nil {
@@ -177,7 +187,7 @@ func (s *service) MarkSessionCrashed(id string, ownerId int) error {
 }
 
 func (s *service) CreateInstallation(data model.NewInstallationData) error {
-	res, err := s.db.Exec("INSERT INTO public.ob_installations (id, owner_id, sdk_version, model, brand) VALUES ($1, $2, $3, $4, $5)", data.Id, data.OwnerId, data.SdkVersion, data.Model, data.Brand)
+	res, err := s.db.Exec("INSERT INTO public.ob_installations (id, app_id, sdk_version, model, brand) VALUES ($1, $2, $3, $4, $5)", data.Id, data.OwnerId, data.SdkVersion, data.Model, data.Brand)
 	if err != nil {
 		return err
 	}
@@ -200,7 +210,7 @@ func (s *service) CreateSession(data model.NewSessionData) error {
 		crashed = 1
 	}
 
-	res, err := s.db.Exec("INSERT INTO public.ob_sessions (id, installation_id, owner_id, created_at, crashed) VALUES ($1, $2, $3, $4, $5)", data.Id, data.InstallationId, data.OwnerId, data.CreatedAt, crashed)
+	res, err := s.db.Exec("INSERT INTO public.ob_sessions (id, installation_id, app_id, created_at, crashed) VALUES ($1, $2, $3, $4, $5)", data.Id, data.InstallationId, data.OwnerId, data.CreatedAt, crashed)
 	if err != nil {
 		return err
 	}
@@ -218,7 +228,7 @@ func (s *service) CreateSession(data model.NewSessionData) error {
 }
 
 func (s *service) CreateEvent(data model.NewEventData) error {
-	sql := " INSERT INTO public.ob_events( id, session_id, owner_id, created_at, type, serialized_data) VALUES ($1, $2, $3, $4, $5, $6)"
+	sql := " INSERT INTO public.ob_events( id, session_id, app_id, created_at, type, serialized_data) VALUES ($1, $2, $3, $4, $5, $6)"
 
 	res, err := s.db.Exec(sql, data.Id, data.SessionId, data.OwnerId, data.CreatedAt, data.Type, data.SerializedData)
 	if err != nil {
@@ -238,7 +248,7 @@ func (s *service) CreateEvent(data model.NewEventData) error {
 }
 
 func (s *service) CreateTrace(data model.NewTraceData) error {
-	sql := "INSERT INTO public.ob_trace( trace_id, session_id, group_id, parent_id, owner_id, name, status, error_message, started_at, ended_at, has_ended) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"
+	sql := "INSERT INTO public.ob_trace( trace_id, session_id, group_id, parent_id, app_id, name, status, error_message, started_at, ended_at, has_ended) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"
 
 	hasEnded := 0
 	if data.HasEnded {
@@ -275,7 +285,7 @@ func (s *service) ValidateApiKey(apiKey string) bool {
 }
 
 func (s *service) GetOwnerId(apiKey string) (int, error) {
-	query := "SELECT owner_id FROM public.ob_api_keys WHERE key = $1"
+	query := "SELECT app_id FROM public.ob_api_keys WHERE key = $1"
 
 	var ownerId int
 	if err := s.db.QueryRow(query, apiKey).Scan(&ownerId); err != nil {
@@ -342,74 +352,4 @@ func (s *service) Health() map[string]string {
 func (s *service) Close() error {
 	log.Printf("Disconnected from database: %s", database)
 	return s.db.Close()
-}
-
-func (s *service) init() error {
-	tx, err := s.db.Begin()
-	if err != nil {
-		return fmt.Errorf("Failed to begin transaction: %v\n", err)
-	}
-
-	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS public.__db_version__ ( current_version INTEGER )")
-
-	if err != nil {
-		return err
-	}
-
-	row := tx.QueryRow("SELECT current_version FROM public.__db_version__ LIMIT 1")
-
-	var version int32
-	if row.Scan(&version) != nil {
-		err = createTables(tx)
-		if err != nil {
-			log.Fatalf("Could not create database tables: %v\n", err)
-			return err
-		}
-
-		version = 1
-		_, err = tx.Exec("INSERT INTO public.__db_version__ VALUES (1)")
-		if err != nil {
-			log.Fatalf("Could not insert new version number into version table: %v\n", err)
-			return err
-		}
-	}
-
-	// When migrations are needed, add a version check here, and apply migrations as needed
-
-	return tx.Commit()
-}
-
-func createTables(tx *sql.Tx) error {
-	_, err := tx.Exec("CREATE TABLE IF NOT EXISTS public.ob_owners (id SERIAL PRIMARY KEY, name TEXT NOT NULL)")
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS public.ob_api_keys (key TEXT PRIMARY KEY, owner_id INTEGER NOT NULL, FOREIGN KEY (owner_id) REFERENCES public.ob_owners (id) ON DELETE CASCADE ON UPDATE NO ACTION)")
-
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS public.ob_installations (id TEXT PRIMARY KEY, sdk_version INTEGER DEFAULT -1, model TEXT DEFAULT '', brand TEXT DEFAULT '', owner_id INTEGER NOT NULL, FOREIGN KEY (owner_id) REFERENCES public.ob_owners (id) ON DELETE CASCADE ON UPDATE NO ACTION)")
-
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS public.ob_sessions (id TEXT PRIMARY KEY, installation_id TEXT NOT NULL, created_at BIGINT NOT NULL, crashed SMALLINT NOT NULL DEFAULT 0, owner_id INTEGER NOT NULL, FOREIGN KEY (owner_id) REFERENCES public.ob_owners (id) ON DELETE CASCADE ON UPDATE NO ACTION)")
-
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS public.ob_events (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, created_at BIGINT NOT NULL, type TEXT NOT NULL, serialized_data TEXT DEFAULT '', owner_id INTEGER NOT NULL, FOREIGN KEY (owner_id) REFERENCES public.ob_owners (id) ON DELETE CASCADE ON UPDATE NO ACTION, FOREIGN KEY (session_id) REFERENCES public.ob_sessions (id) ON DELETE NO ACTION ON UPDATE NO ACTION)")
-
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS public.ob_trace (trace_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, group_id TEXT NOT NULL, parent_id TEXT DEFAULT '', name TEXT NOT NULL, status TEXT NOT NULL, error_message TEXT DEFAULT '', started_at BIGINT NOT NULL, ended_at BIGINT NOT NULL DEFAULT 0, has_ended INTEGER NOT NULL DEFAULT 0, owner_id INTEGER NOT NULL, FOREIGN KEY (owner_id) REFERENCES public.ob_owners (id) ON DELETE CASCADE ON UPDATE NO ACTION, FOREIGN KEY (session_id) REFERENCES public.ob_sessions (id) ON DELETE NO ACTION ON UPDATE NO ACTION)")
-
-	return err
 }

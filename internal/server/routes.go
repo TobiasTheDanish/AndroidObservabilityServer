@@ -60,7 +60,7 @@ func (s *Server) createOwnerHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
 
-	id, err := s.db.CreateOwner(model.NewOwnerData{
+	id, err := s.db.CreateApplication(model.NewApplicationData{
 		Name: ownerDTO.Name,
 	})
 	if err != nil {
@@ -81,7 +81,7 @@ func (s *Server) createKeyHandler(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
-	apiKeyDTO.OwnerId = id
+	apiKeyDTO.AppId = id
 	if err := c.Validate(&apiKeyDTO); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
@@ -92,8 +92,8 @@ func (s *Server) createKeyHandler(c echo.Context) error {
 	}
 
 	err = s.db.CreateApiKey(model.NewApiKeyData{
-		Key:     auth.HashApiKey(key),
-		OwnerId: apiKeyDTO.OwnerId,
+		Key:   auth.HashApiKey(key),
+		AppId: apiKeyDTO.AppId,
 	})
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{

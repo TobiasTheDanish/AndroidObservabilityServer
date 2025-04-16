@@ -28,7 +28,7 @@ func TestMain(m *testing.M) {
 
 	db = database.New()
 
-	ownerId, err = db.CreateOwner(model.NewOwnerData{
+	ownerId, err = db.CreateApplication(model.NewApplicationData{
 		Name: "Test owner",
 	})
 	if err != nil {

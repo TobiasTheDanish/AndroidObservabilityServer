@@ -31,7 +31,7 @@ func TestNew(t *testing.T) {
 func TestCreateOwner(t *testing.T) {
 	srv := New()
 
-	ownerId, err := srv.CreateOwner(model.NewOwnerData{Name: "TestOwner"})
+	ownerId, err := srv.CreateApplication(model.NewApplicationData{Name: "TestOwner"})
 	if err != nil || ownerId == -1 {
 		t.Fatalf("Creating owner failed. %v\n", err)
 	}
@@ -40,7 +40,7 @@ func TestCreateOwner(t *testing.T) {
 func TestValidateApiKey(t *testing.T) {
 	srv := New()
 
-	ownerId, _ := srv.CreateOwner(model.NewOwnerData{Name: "TestOwner"})
+	ownerId, _ := srv.CreateApplication(model.NewApplicationData{Name: "TestOwner"})
 
 	key, err := auth.GenerateApiKey()
 	if err != nil {
@@ -50,8 +50,8 @@ func TestValidateApiKey(t *testing.T) {
 	hash := auth.HashApiKey(key)
 
 	srv.CreateApiKey(model.NewApiKeyData{
-		Key:     hash,
-		OwnerId: ownerId,
+		Key:   hash,
+		AppId: ownerId,
 	})
 
 	if !srv.ValidateApiKey(hash) {
@@ -70,7 +70,7 @@ func TestValidateApiKey(t *testing.T) {
 func TestCreateInstallation(t *testing.T) {
 	srv := New()
 
-	ownerId, _ := srv.CreateOwner(model.NewOwnerData{Name: "TestOwner"})
+	ownerId, _ := srv.CreateApplication(model.NewApplicationData{Name: "TestOwner"})
 
 	data := model.NewInstallationData{
 		Id:         "TestInstallation123",
@@ -94,7 +94,7 @@ func TestCreateInstallation(t *testing.T) {
 func TestCreateSession(t *testing.T) {
 	srv := New()
 
-	ownerId, _ := srv.CreateOwner(model.NewOwnerData{Name: "TestOwner"})
+	ownerId, _ := srv.CreateApplication(model.NewApplicationData{Name: "TestOwner"})
 
 	data := model.NewSessionData{
 		Id:             "TestSession123",
@@ -118,7 +118,7 @@ func TestCreateSession(t *testing.T) {
 func TestMarkSessionCrashed(t *testing.T) {
 	srv := New()
 
-	ownerId, _ := srv.CreateOwner(model.NewOwnerData{Name: "TestOwner"})
+	ownerId, _ := srv.CreateApplication(model.NewApplicationData{Name: "TestOwner"})
 
 	data := model.NewSessionData{
 		Id:             "TestSession223",
@@ -142,7 +142,7 @@ func TestMarkSessionCrashed(t *testing.T) {
 func TestCreateEvent(t *testing.T) {
 	srv := New()
 
-	ownerId, _ := srv.CreateOwner(model.NewOwnerData{Name: "TestOwner"})
+	ownerId, _ := srv.CreateApplication(model.NewApplicationData{Name: "TestOwner"})
 
 	sessionData := model.NewSessionData{
 		Id:             "TestSession1234",
@@ -172,7 +172,7 @@ func TestCreateEvent(t *testing.T) {
 func TestCreateTrace(t *testing.T) {
 	srv := New()
 
-	ownerId, _ := srv.CreateOwner(model.NewOwnerData{Name: "TestOwner"})
+	ownerId, _ := srv.CreateApplication(model.NewApplicationData{Name: "TestOwner"})
 
 	sessionData := model.NewSessionData{
 		Id:             "TestSession12345",
