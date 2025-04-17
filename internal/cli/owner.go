@@ -8,31 +8,31 @@ import (
 	"net/http"
 )
 
-type ownerCommand struct {
+type appCommand struct {
 	fs     *flag.FlagSet
 	create bool
 	name   string
 	list   bool
 }
 
-func OwnerCommand() Command {
-	cmd := &ownerCommand{
-		fs: flag.NewFlagSet("owner", flag.ExitOnError),
+func AppCommand() Command {
+	cmd := &appCommand{
+		fs: flag.NewFlagSet("app", flag.ExitOnError),
 	}
 
-	cmd.fs.BoolVar(&cmd.create, "create", false, "Create a new owner. Name must be specified when creating a new owner")
-	cmd.fs.StringVar(&cmd.name, "name", "", "Name of the owner")
-	cmd.fs.BoolVar(&cmd.list, "list", false, "List all current owners. Not implmented yet")
+	cmd.fs.BoolVar(&cmd.create, "create", false, "Create a new app. Name must be specified when creating a new app")
+	cmd.fs.StringVar(&cmd.name, "name", "", "Name of the app")
+	cmd.fs.BoolVar(&cmd.list, "list", false, "List all current apps. Not implmented yet")
 
 	return cmd
 }
 
-func (c *ownerCommand) Init(args []string) error {
+func (c *appCommand) Init(args []string) error {
 	return c.fs.Parse(args)
 }
 
 // TODO: add support for list command
-func (c *ownerCommand) Run() {
+func (c *appCommand) Run() {
 
 	if !(c.create || c.list) {
 		fmt.Println("Missing create or list flag")
@@ -41,21 +41,21 @@ func (c *ownerCommand) Run() {
 	}
 
 	if c.create && c.list {
-		fmt.Println("Cannot both create new and list current owners at the same time")
+		fmt.Println("Cannot both create new and list current apps at the same time")
 		c.fs.Usage()
 		return
 	}
 
 	if c.create && c.name == "" {
-		fmt.Println("Name must be specified when creating owner")
+		fmt.Println("Name must be specified when creating app")
 		c.fs.Usage()
 		return
 	}
 
 	if c.create {
-		err := createOwner(c.name)
+		err := createApp(c.name)
 		if err != nil {
-			fmt.Printf("Error creating new owner: %v\n", err)
+			fmt.Printf("Error creating new app: %v\n", err)
 		}
 		return
 	}
@@ -64,15 +64,15 @@ func (c *ownerCommand) Run() {
 	return
 }
 
-func (c *ownerCommand) Name() string {
+func (c *appCommand) Name() string {
 	return c.fs.Name()
 }
 
-func (c *ownerCommand) Description() string {
-	return "Create new or list current owners"
+func (c *appCommand) Description() string {
+	return "Create new or list current apps"
 }
 
-func createOwner(name string) error {
+func createApp(name string) error {
 	body := map[string]string{
 		"name": name,
 	}
@@ -81,7 +81,7 @@ func createOwner(name string) error {
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/auth/owners", baseUrl), bytes.NewReader(jsonBytes))
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/auth/apps", baseUrl), bytes.NewReader(jsonBytes))
 	if err != nil {
 		return err
 	}
@@ -99,10 +99,10 @@ func createOwner(name string) error {
 	}
 
 	if res.StatusCode != http.StatusCreated {
-		return fmt.Errorf("Creating new owner failed with status %d, and body: \n%v\nMAKE SURE ENV VAR 'CLI_SECRET' IS SET!", res.StatusCode, resBody)
+		return fmt.Errorf("Creating new app failed with status %d, and body: \n%v\nMAKE SURE ENV VAR 'CLI_SECRET' IS SET!", res.StatusCode, resBody)
 	}
 
-	fmt.Printf("New owner created!\nReturned id: '%v'\n", resBody["id"])
+	fmt.Printf("New app created!\nReturned id: '%v'\n", resBody["id"])
 
 	return nil
 }

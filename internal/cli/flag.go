@@ -31,7 +31,7 @@ func (c Commands) Usage() {
 
 func ParseFlags(args []string) (bool, Command) {
 	cmds := Commands{
-		OwnerCommand(),
+		AppCommand(),
 		ApiKeyCommand(),
 	}
 
