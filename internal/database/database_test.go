@@ -58,7 +58,7 @@ func TestValidateApiKey(t *testing.T) {
 		t.Fatalf("ValidateApiKey returned false with key: %s\n", key)
 	}
 
-	id, err := srv.GetOwnerId(hash)
+	id, err := srv.GetAppId(hash)
 	if err != nil {
 		t.Fatalf("GetOwnerId failed with error: %v\n", err)
 	}
@@ -99,7 +99,7 @@ func TestCreateSession(t *testing.T) {
 	data := model.NewSessionData{
 		Id:             "TestSession123",
 		InstallationId: "InstallationIdForTestSession123",
-		OwnerId:        ownerId,
+		AppId:          ownerId,
 		CreatedAt:      1,
 		Crashed:        false,
 	}
@@ -123,7 +123,7 @@ func TestMarkSessionCrashed(t *testing.T) {
 	data := model.NewSessionData{
 		Id:             "TestSession223",
 		InstallationId: "InstallationIdForTestSession123",
-		OwnerId:        ownerId,
+		AppId:          ownerId,
 		CreatedAt:      1,
 		Crashed:        false,
 	}
@@ -147,7 +147,7 @@ func TestCreateEvent(t *testing.T) {
 	sessionData := model.NewSessionData{
 		Id:             "TestSession1234",
 		InstallationId: "InstallationIdForTestSession123",
-		OwnerId:        ownerId,
+		AppId:          ownerId,
 		CreatedAt:      1,
 		Crashed:        false,
 	}
@@ -157,7 +157,7 @@ func TestCreateEvent(t *testing.T) {
 	eventData := model.NewEventData{
 		Id:             "TestEvent",
 		SessionId:      sessionData.Id,
-		OwnerId:        ownerId,
+		AppId:          ownerId,
 		Type:           "TestEvent",
 		SerializedData: "{}",
 		CreatedAt:      2,
@@ -177,7 +177,7 @@ func TestCreateTrace(t *testing.T) {
 	sessionData := model.NewSessionData{
 		Id:             "TestSession12345",
 		InstallationId: "InstallationIdForTestSession123",
-		OwnerId:        ownerId,
+		AppId:          ownerId,
 		CreatedAt:      1,
 		Crashed:        false,
 	}
@@ -189,7 +189,7 @@ func TestCreateTrace(t *testing.T) {
 		SessionId:    sessionData.Id,
 		GroupId:      "TestGroup",
 		ParentId:     "",
-		OwnerId:      ownerId,
+		AppId:        ownerId,
 		Name:         "TraceTest",
 		Status:       "Ok",
 		ErrorMessage: "",

@@ -4,7 +4,7 @@ type NewApplicationData struct {
 	Name string
 }
 
-type OwnerDTO struct {
+type ApplicationDTO struct {
 	Name string `json:"name" validate:"required"`
 }
 

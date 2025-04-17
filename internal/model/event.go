@@ -3,7 +3,7 @@ package model
 type NewEventData struct {
 	Id             string
 	SessionId      string
-	OwnerId        int
+	AppId          int
 	Type           string
 	SerializedData string
 	CreatedAt      int64

@@ -35,7 +35,7 @@ type Service interface {
 	ValidateApiKey(string) bool
 
 	// Returns the id of the owner of the ApiKey
-	GetOwnerId(apiKey string) (int, error)
+	GetAppId(apiKey string) (int, error)
 
 	// Health returns a map of health status information.
 	// The keys and values in the map are service-specific.
@@ -210,7 +210,7 @@ func (s *service) CreateSession(data model.NewSessionData) error {
 		crashed = 1
 	}
 
-	res, err := s.db.Exec("INSERT INTO public.ob_sessions (id, installation_id, app_id, created_at, crashed) VALUES ($1, $2, $3, $4, $5)", data.Id, data.InstallationId, data.OwnerId, data.CreatedAt, crashed)
+	res, err := s.db.Exec("INSERT INTO public.ob_sessions (id, installation_id, app_id, created_at, crashed) VALUES ($1, $2, $3, $4, $5)", data.Id, data.InstallationId, data.AppId, data.CreatedAt, crashed)
 	if err != nil {
 		return err
 	}
@@ -230,7 +230,7 @@ func (s *service) CreateSession(data model.NewSessionData) error {
 func (s *service) CreateEvent(data model.NewEventData) error {
 	sql := " INSERT INTO public.ob_events( id, session_id, app_id, created_at, type, serialized_data) VALUES ($1, $2, $3, $4, $5, $6)"
 
-	res, err := s.db.Exec(sql, data.Id, data.SessionId, data.OwnerId, data.CreatedAt, data.Type, data.SerializedData)
+	res, err := s.db.Exec(sql, data.Id, data.SessionId, data.AppId, data.CreatedAt, data.Type, data.SerializedData)
 	if err != nil {
 		return err
 	}
@@ -255,7 +255,7 @@ func (s *service) CreateTrace(data model.NewTraceData) error {
 		hasEnded = 1
 	}
 
-	res, err := s.db.Exec(sql, data.TraceId, data.SessionId, data.GroupId, data.ParentId, data.OwnerId, data.Name, data.Status, data.ErrorMessage, data.StartedAt, data.EndedAt, hasEnded)
+	res, err := s.db.Exec(sql, data.TraceId, data.SessionId, data.GroupId, data.ParentId, data.AppId, data.Name, data.Status, data.ErrorMessage, data.StartedAt, data.EndedAt, hasEnded)
 	if err != nil {
 		return err
 	}
@@ -284,7 +284,7 @@ func (s *service) ValidateApiKey(apiKey string) bool {
 	return exists
 }
 
-func (s *service) GetOwnerId(apiKey string) (int, error) {
+func (s *service) GetAppId(apiKey string) (int, error) {
 	query := "SELECT app_id FROM public.ob_api_keys WHERE key = $1"
 
 	var ownerId int

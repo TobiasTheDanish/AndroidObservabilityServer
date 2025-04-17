@@ -13,7 +13,7 @@ import (
 var apiAuthSecret = os.Getenv("OBSERVE_API_SECRET")
 
 // Validates the ApiKey passed via Authorization header(if any)
-// and sets the ownerId of the key on the echo Context
+// and sets the appId of the key on the echo Context
 func (s *Server) APIKeyMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		apiKey := c.Request().Header.Get("Authorization")
@@ -29,13 +29,13 @@ func (s *Server) APIKeyMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 			return echo.NewHTTPError(http.StatusUnauthorized, "Invalid API key")
 		}
 
-		ownerId, err := s.db.GetOwnerId(hashedApiKey)
+		appId, err := s.db.GetAppId(hashedApiKey)
 		if err != nil {
 			log.Println(err)
 			return echo.NewHTTPError(http.StatusInternalServerError, "Could not get info based on api key")
 		}
 
-		c.Set("ownerId", ownerId)
+		c.Set("appId", appId)
 
 		return next(c)
 	}

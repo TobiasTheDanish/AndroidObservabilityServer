@@ -24,8 +24,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	authV1 := e.Group("/api/auth", s.AuthMiddleware)
 
-	authV1.POST("/owners", s.createOwnerHandler)
-	authV1.POST("/owners/:id/keys", s.createKeyHandler)
+	authV1.POST("/apps", s.createAppHandler)
+	authV1.POST("/apps/:id/keys", s.createKeyHandler)
 
 	apiV1 := e.Group("/api/v1", s.APIKeyMiddleware)
 
@@ -51,26 +51,26 @@ func (s *Server) healthHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, s.db.Health())
 }
 
-func (s *Server) createOwnerHandler(c echo.Context) error {
-	var ownerDTO model.OwnerDTO
-	if err := c.Bind(&ownerDTO); err != nil {
+func (s *Server) createAppHandler(c echo.Context) error {
+	var appDTO model.ApplicationDTO
+	if err := c.Bind(&appDTO); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
-	if err := c.Validate(&ownerDTO); err != nil {
+	if err := c.Validate(&appDTO); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
 
 	id, err := s.db.CreateApplication(model.NewApplicationData{
-		Name: ownerDTO.Name,
+		Name: appDTO.Name,
 	})
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{
-			"message": fmt.Sprintf("Owner could not be created: %v", err),
+			"message": fmt.Sprintf("app could not be created: %v", err),
 		})
 	}
 
 	return c.JSON(http.StatusCreated, map[string]any{
-		"message": "Owner created",
+		"message": "App created",
 		"id":      id,
 	})
 }
@@ -108,9 +108,9 @@ func (s *Server) createKeyHandler(c echo.Context) error {
 }
 
 func (s *Server) createInstallationHandler(c echo.Context) error {
-	ownerId := c.Get("ownerId")
-	if ownerId == nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Missing owner id")
+	appId := c.Get("appId")
+	if appId == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Missing app id")
 	}
 
 	var installationDTO model.InstallationDTO
@@ -129,7 +129,7 @@ func (s *Server) createInstallationHandler(c echo.Context) error {
 
 	err := s.db.CreateInstallation(model.NewInstallationData{
 		Id:         installationDTO.Id,
-		OwnerId:    ownerId.(int),
+		OwnerId:    appId.(int),
 		SdkVersion: installationDTO.SdkVersion,
 		Model:      installationDTO.Model,
 		Brand:      installationDTO.Brand,
@@ -146,9 +146,9 @@ func (s *Server) createInstallationHandler(c echo.Context) error {
 }
 
 func (s *Server) createCollectionHandler(c echo.Context) error {
-	ownerId := c.Get("ownerId")
-	if ownerId == nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Missing owner id")
+	appId := c.Get("appId")
+	if appId == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Missing app id")
 	}
 
 	var collectionData model.CollectionDTO
@@ -191,7 +191,7 @@ func (s *Server) createCollectionHandler(c echo.Context) error {
 			err := s.db.CreateSession(model.NewSessionData{
 				Id:             sessionDTO.Id,
 				InstallationId: sessionDTO.InstallationId,
-				OwnerId:        ownerId.(int),
+				AppId:          appId.(int),
 				CreatedAt:      sessionDTO.CreatedAt,
 				Crashed:        sessionDTO.Crashed,
 			})
@@ -204,7 +204,7 @@ func (s *Server) createCollectionHandler(c echo.Context) error {
 			err := s.db.CreateEvent(model.NewEventData{
 				Id:             e.Id,
 				SessionId:      e.SessionId,
-				OwnerId:        ownerId.(int),
+				AppId:          appId.(int),
 				SerializedData: e.SerializedData,
 				Type:           e.Type,
 				CreatedAt:      e.CreatedAt,
@@ -219,7 +219,7 @@ func (s *Server) createCollectionHandler(c echo.Context) error {
 				TraceId:      t.TraceId,
 				SessionId:    t.SessionId,
 				ParentId:     t.ParentId,
-				OwnerId:      ownerId.(int),
+				AppId:        appId.(int),
 				Name:         t.Name,
 				Status:       t.Status,
 				ErrorMessage: t.ErrorMessage,
@@ -239,9 +239,9 @@ func (s *Server) createCollectionHandler(c echo.Context) error {
 }
 
 func (s *Server) createSessionHandler(c echo.Context) error {
-	ownerId := c.Get("ownerId")
-	if ownerId == nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Missing owner id")
+	appId := c.Get("appId")
+	if appId == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Missing app id")
 	}
 
 	var sessionData model.SessionDTO
@@ -257,7 +257,7 @@ func (s *Server) createSessionHandler(c echo.Context) error {
 	err := s.db.CreateSession(model.NewSessionData{
 		Id:             sessionData.Id,
 		InstallationId: sessionData.InstallationId,
-		OwnerId:        ownerId.(int),
+		AppId:          appId.(int),
 		CreatedAt:      sessionData.CreatedAt,
 		Crashed:        sessionData.Crashed,
 	})
@@ -273,13 +273,13 @@ func (s *Server) createSessionHandler(c echo.Context) error {
 }
 
 func (s *Server) sessionCrashHandler(c echo.Context) error {
-	ownerId := c.Get("ownerId")
-	if ownerId == nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Missing owner id")
+	appId := c.Get("appId")
+	if appId == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Missing app id")
 	}
 
 	sessionId := c.Param("id")
-	err := s.db.MarkSessionCrashed(sessionId, ownerId.(int))
+	err := s.db.MarkSessionCrashed(sessionId, appId.(int))
 	if err != nil {
 		log.Printf("Error marking session with id %s as crashed: %v\n", sessionId, err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "Could not mark session as crashed")
@@ -289,9 +289,9 @@ func (s *Server) sessionCrashHandler(c echo.Context) error {
 }
 
 func (s *Server) createEventHandler(c echo.Context) error {
-	ownerId := c.Get("ownerId")
-	if ownerId == nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Missing owner id")
+	appId := c.Get("appId")
+	if appId == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Missing app id")
 	}
 
 	var dto model.EventDTO
@@ -307,7 +307,7 @@ func (s *Server) createEventHandler(c echo.Context) error {
 	err := s.db.CreateEvent(model.NewEventData{
 		Id:             dto.Id,
 		SessionId:      dto.SessionId,
-		OwnerId:        ownerId.(int),
+		AppId:          appId.(int),
 		Type:           dto.Type,
 		SerializedData: dto.SerializedData,
 		CreatedAt:      dto.CreatedAt,
@@ -324,9 +324,9 @@ func (s *Server) createEventHandler(c echo.Context) error {
 }
 
 func (s *Server) createTraceHandler(c echo.Context) error {
-	ownerId := c.Get("ownerId")
-	if ownerId == nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Missing owner id")
+	appId := c.Get("appId")
+	if appId == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Missing app id")
 	}
 
 	data := new(model.TraceDTO)
@@ -342,7 +342,7 @@ func (s *Server) createTraceHandler(c echo.Context) error {
 		SessionId:    data.SessionId,
 		GroupId:      data.GroupId,
 		ParentId:     data.ParentId,
-		OwnerId:      ownerId.(int),
+		AppId:        appId.(int),
 		Name:         data.Name,
 		Status:       data.Status,
 		ErrorMessage: data.ErrorMessage,
