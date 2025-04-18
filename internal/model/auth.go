@@ -1,7 +1,18 @@
 package model
 
-type NewApplicationData struct {
+type NewTeamData struct {
 	Name string
+}
+
+type NewUserData struct {
+	TeamId       int
+	Name         string
+	PasswordHash string
+}
+
+type NewApplicationData struct {
+	Name   string
+	TeamId int
 }
 
 type ApplicationDTO struct {

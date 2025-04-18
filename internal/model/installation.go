@@ -2,7 +2,7 @@ package model
 
 type NewInstallationData struct {
 	Id         string
-	OwnerId    int
+	AppId      int
 	SdkVersion int
 	Model      string
 	Brand      string

@@ -22,6 +22,9 @@ import (
 
 // Service represents a service that interacts with a database.
 type Service interface {
+	CreateTeam(data model.NewTeamData) (int, error)
+	CreateUser(data model.NewUserData) (int, error)
+	CreateTeamUserLink(data model.NewTeamUserLinkData) error
 	CreateApplication(data model.NewApplicationData) (int, error)
 	CreateApiKey(data model.NewApiKeyData) error
 
@@ -132,11 +135,37 @@ func New() Service {
 	return dbInstance
 }
 
-func (s *service) CreateApplication(data model.NewApplicationData) (int, error) {
-	query := "INSERT INTO public.ob_applications(name) VALUES ($1) RETURNING id"
+func (s *service) CreateTeam(data model.NewTeamData) (int, error) {
+	query := "INSERT INTO public.ob_teams(name) VALUES ($1) RETURNING id"
 
 	var id int
 	err := s.db.QueryRow(query, data.Name).Scan(&id)
+
+	return id, err
+}
+
+func (s *service) CreateUser(data model.NewUserData) (int, error) {
+	query := "INSERT INTO public.ob_users(name, pw_hash) VALUES ($1, $2) RETURNING id"
+
+	var id int
+	err := s.db.QueryRow(query, data.Name, data.PasswordHash).Scan(&id)
+
+	return id, err
+}
+
+func (s *service) CreateTeamUserLink(data model.NewTeamUserLinkData) error {
+	query := "INSERT INTO public.ob_team_users(team_id, user_id, role) VALUES ($1, $2, $3)"
+
+	_, err := s.db.Exec(query, data.TeamId, data.UserId, data.Role)
+
+	return err
+}
+
+func (s *service) CreateApplication(data model.NewApplicationData) (int, error) {
+	query := "INSERT INTO public.ob_applications(name, team_id) VALUES ($1, $2) RETURNING id"
+
+	var id int
+	err := s.db.QueryRow(query, data.Name, data.TeamId).Scan(&id)
 
 	return id, err
 }
@@ -187,7 +216,7 @@ func (s *service) MarkSessionCrashed(id string, ownerId int) error {
 }
 
 func (s *service) CreateInstallation(data model.NewInstallationData) error {
-	res, err := s.db.Exec("INSERT INTO public.ob_installations (id, app_id, sdk_version, model, brand) VALUES ($1, $2, $3, $4, $5)", data.Id, data.OwnerId, data.SdkVersion, data.Model, data.Brand)
+	res, err := s.db.Exec("INSERT INTO public.ob_installations (id, app_id, sdk_version, model, brand) VALUES ($1, $2, $3, $4, $5)", data.Id, data.AppId, data.SdkVersion, data.Model, data.Brand)
 	if err != nil {
 		return err
 	}

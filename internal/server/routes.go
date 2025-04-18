@@ -129,7 +129,7 @@ func (s *Server) createInstallationHandler(c echo.Context) error {
 
 	err := s.db.CreateInstallation(model.NewInstallationData{
 		Id:         installationDTO.Id,
-		OwnerId:    appId.(int),
+		AppId:      appId.(int),
 		SdkVersion: installationDTO.SdkVersion,
 		Model:      installationDTO.Model,
 		Brand:      installationDTO.Brand,

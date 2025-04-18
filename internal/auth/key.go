@@ -7,6 +7,8 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"os"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -27,4 +29,10 @@ func HashApiKey(key string) string {
 	h := hmac.New(sha256.New, []byte(hashSecret))
 	h.Write([]byte(key))
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+func HashPassword(pw string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
+
+	return string(hash), err
 }
