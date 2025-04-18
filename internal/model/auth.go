@@ -5,7 +5,8 @@ type NewApplicationData struct {
 }
 
 type ApplicationDTO struct {
-	Name string `json:"name" validate:"required"`
+	Name   string `json:"name" validate:"required"`
+	TeamId int    `param:"teamId" validate:"required"`
 }
 
 type NewApiKeyData struct {
@@ -14,10 +15,10 @@ type NewApiKeyData struct {
 }
 
 type NewApiKeyDTO struct {
-	AppId int `param:"ownerId" validate:"required"`
+	AppId int `param:"appId" validate:"required"`
 }
 
 type ApiKeyDTO struct {
 	Key   string `json:"id" validate:"required"`
-	AppId int    `json:"ownerId" validate:"required"`
+	AppId int    `json:"appId" validate:"required"`
 }
