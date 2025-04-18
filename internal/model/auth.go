@@ -4,10 +4,30 @@ type NewTeamData struct {
 	Name string
 }
 
+type TeamDTO struct {
+	Name string `json:"name" validate:"required"`
+}
+
 type NewUserData struct {
-	TeamId       int
 	Name         string
 	PasswordHash string
+}
+
+type UserDTO struct {
+	Name     string `json:"name" validate:"required"`
+	Password string `json:"password" validate:"required"`
+}
+
+type NewTeamUserLinkData struct {
+	TeamId int
+	UserId int
+	Role   string
+}
+
+type TeamUserLinkDTO struct {
+	TeamId int    `param:"id" validate:"required"`
+	UserId int    `json:"userId" validate:"required"`
+	Role   string `json:"role" validate:"required"`
 }
 
 type NewApplicationData struct {
@@ -17,7 +37,7 @@ type NewApplicationData struct {
 
 type ApplicationDTO struct {
 	Name   string `json:"name" validate:"required"`
-	TeamId int    `param:"teamId" validate:"required"`
+	TeamId int    `json:"teamId" validate:"required"`
 }
 
 type NewApiKeyData struct {

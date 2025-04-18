@@ -6,18 +6,20 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/labstack/echo/v4"
 )
 
 var (
-	db      database.Service
-	ownerId int
+	db    database.Service
+	appId int
 )
 
 func TestMain(m *testing.M) {
@@ -28,11 +30,16 @@ func TestMain(m *testing.M) {
 
 	db = database.New()
 
-	ownerId, err = db.CreateApplication(model.NewApplicationData{
-		Name: "Test owner",
+	teamId, err := db.CreateTeam(model.NewTeamData{Name: "Test team"})
+	if err != nil {
+		log.Fatalf("Could not create test team: %v", err)
+	}
+	appId, err = db.CreateApplication(model.NewApplicationData{
+		Name:   "Test owner",
+		TeamId: teamId,
 	})
 	if err != nil {
-		log.Fatalf("Could not create test owner: %v", err)
+		log.Fatalf("Could not create test application: %v", err)
 	}
 
 	m.Run()
@@ -73,6 +80,129 @@ func TestHandler(t *testing.T) {
 	}
 }
 
+func TestTeamUserAuth(t *testing.T) {
+	s := &Server{
+		db: db,
+	}
+	e := echo.New()
+	e.Validator = NewValidator()
+
+	teamData := model.TeamDTO{
+		Name: "Test Team",
+	}
+	body, err := json.Marshal(teamData)
+	if err != nil {
+		t.Fatalf("Could not marshal Team: %v", err)
+	}
+	reader := bytes.NewReader(body)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/collection", reader)
+	resp := httptest.NewRecorder()
+	req.Header.Set("Content-type", "application/json")
+
+	c := e.NewContext(req, resp)
+
+	err = s.createTeamHandler(c)
+	if err != nil {
+		t.Errorf("createTeamHandler() error = %v", err)
+		return
+	}
+	expected := map[string]string{
+		"message": "Team created",
+	}
+	var teamActual map[string]any
+	// Decode the response body into the actual map
+	if err := json.NewDecoder(resp.Body).Decode(&teamActual); err != nil {
+		t.Errorf("createTeamHandler() error decoding response body: %v", err)
+		return
+	}
+	if resp.Code != http.StatusCreated {
+		t.Errorf("createTeamHandler() wrong status code = %v", resp.Code)
+		return
+	}
+	// Compare the decoded response with the expected value
+	if !reflect.DeepEqual(expected["message"], teamActual["message"]) {
+		t.Errorf("createTeamHandler() wrong response body. expected = %v, actual = %v", expected, teamActual)
+		return
+	}
+
+	userData := model.UserDTO{
+		Name:     "Test user",
+		Password: "abc1234",
+	}
+	body, err = json.Marshal(userData)
+	if err != nil {
+		t.Fatalf("Could not marshal User: %v", err)
+	}
+	reader = bytes.NewReader(body)
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/users", reader)
+	resp = httptest.NewRecorder()
+	req.Header.Set("Content-type", "application/json")
+
+	c = e.NewContext(req, resp)
+
+	err = s.createUserHandler(c)
+	if err != nil {
+		t.Errorf("createUserHandler() error = %v", err)
+		return
+	}
+	expected = map[string]string{"message": "User created", "id": "1"}
+	var userActual map[string]any
+	// Decode the response body into the actual map
+	if err := json.NewDecoder(resp.Body).Decode(&userActual); err != nil {
+		t.Errorf("createUserHandler() error decoding response body: %v", err)
+		return
+	}
+	if resp.Code != http.StatusCreated {
+		t.Errorf("createUserHandler() wrong status code = %v", resp.Code)
+		return
+	}
+	// Compare the decoded response with the expected value
+	if !reflect.DeepEqual(expected["message"], userActual["message"]) {
+		t.Errorf("createUserHandler() wrong response body. expected = %v, actual = %v", expected, userActual)
+		return
+	}
+
+	linkData := model.TeamUserLinkDTO{
+		UserId: int(userActual["id"].(float64)),
+		Role:   "Owner",
+	}
+	body, err = json.Marshal(linkData)
+	if err != nil {
+		t.Fatalf("Could not marshal Link: %v", err)
+	}
+	reader = bytes.NewReader(body)
+	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/teams/%d/users", int(teamActual["id"].(float64))), reader)
+	resp = httptest.NewRecorder()
+	req.Header.Set("Content-type", "application/json")
+
+	c = e.NewContext(req, resp)
+	c.SetParamNames("id")
+	c.SetParamValues(strconv.Itoa(int(teamActual["id"].(float64))))
+
+	err = s.createTeamUserLinkHandler(c)
+	if err != nil {
+		t.Errorf("createTeamUserLinkHandler() error = %v", err)
+		return
+	}
+	linkExpected := map[string]string{"message": "Link created"}
+	var linkActual map[string]string
+	// Decode the response body into the actual map
+	if err := json.NewDecoder(resp.Body).Decode(&linkActual); err != nil {
+		t.Errorf("createTeamUserLinkHandler() error decoding response body: %v", err)
+		return
+	}
+	if resp.Code != http.StatusCreated {
+		t.Errorf("createTeamUserLinkHandler() wrong status code = %v", resp.Code)
+		return
+	}
+	// Compare the decoded response with the expected value
+	if !reflect.DeepEqual(linkExpected, linkActual) {
+		t.Errorf("createTeamUserLinkHandler() wrong response body. expected = %v, actual = %v", linkExpected, linkActual)
+		return
+	}
+}
+
 func TestCreateCollection(t *testing.T) {
 	collection := model.CollectionDTO{
 		Session: nil,
@@ -96,7 +226,7 @@ func TestCreateCollection(t *testing.T) {
 		db: db,
 	}
 
-	c.Set("ownerId", ownerId)
+	c.Set("appId", appId)
 
 	err = s.createCollectionHandler(c)
 	if err != nil {
@@ -153,7 +283,7 @@ func TestCreateCollectionInvalidSession(t *testing.T) {
 		db: db,
 	}
 
-	c.Set("ownerId", ownerId)
+	c.Set("appId", appId)
 
 	err = s.createCollectionHandler(c)
 	if err != nil {
@@ -226,7 +356,7 @@ func TestCreateCollectionInvalidEvent(t *testing.T) {
 		db: db,
 	}
 
-	c.Set("ownerId", ownerId)
+	c.Set("appId", appId)
 
 	err = s.createCollectionHandler(c)
 	if err != nil {
@@ -302,7 +432,7 @@ func TestCreateCollectionInvalidTrace(t *testing.T) {
 		db: db,
 	}
 
-	c.Set("ownerId", ownerId)
+	c.Set("appId", appId)
 
 	err = s.createCollectionHandler(c)
 	if err != nil {
@@ -358,7 +488,7 @@ func TestCreateInstallation(t *testing.T) {
 		db: db,
 	}
 
-	c.Set("ownerId", ownerId)
+	c.Set("appId", appId)
 	err = s.createInstallationHandler(c)
 	if err != nil {
 		t.Fatalf("createInstallationHandler failed: %v\n", err)
@@ -403,7 +533,7 @@ func TestCreateInstallationNonUUID(t *testing.T) {
 		db: db,
 	}
 
-	c.Set("ownerId", ownerId)
+	c.Set("appId", appId)
 	err = s.createInstallationHandler(c)
 	if err != nil {
 		t.Fatalf("createInstallationHandler failed: %v\n", err)

@@ -22,13 +22,16 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	e.GET("/health", s.healthHandler)
 
-	authV1 := e.Group("/api/auth", s.AuthMiddleware)
+	e.POST("/api/auth/teams", s.createTeamHandler)
+	e.POST("/api/auth/teams/:id/users", s.createTeamUserLinkHandler)
+	e.POST("/api/auth/users", s.createUserHandler)
+	e.POST("/api/auth/sign-in", s.signInHandler)
 
-	authV1.POST("/apps", s.createAppHandler)
-	authV1.POST("/apps/:id/keys", s.createKeyHandler)
+	authV1 := e.Group("/api/auth/apps", s.AppAuthMiddleware)
+	authV1.POST("/", s.createAppHandler)
+	authV1.POST("/:id/keys", s.createKeyHandler)
 
 	apiV1 := e.Group("/api/v1", s.APIKeyMiddleware)
-
 	apiV1.POST("/installations", s.createInstallationHandler)
 	apiV1.POST("/collection", s.createCollectionHandler)
 	apiV1.POST("/sessions", s.createSessionHandler)
@@ -49,6 +52,90 @@ func (s *Server) HelloWorldHandler(c echo.Context) error {
 
 func (s *Server) healthHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, s.db.Health())
+}
+
+func (s *Server) createTeamHandler(c echo.Context) error {
+	var teamDTO model.TeamDTO
+	if err := c.Bind(&teamDTO); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err)
+	}
+	if err := c.Validate(&teamDTO); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err)
+	}
+
+	id, err := s.db.CreateTeam(model.NewTeamData{
+		Name: teamDTO.Name,
+	})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	return c.JSON(http.StatusCreated, map[string]any{
+		"message": "Team created",
+		"id":      id,
+	})
+}
+
+func (s *Server) createTeamUserLinkHandler(c echo.Context) error {
+	var linkDTO model.TeamUserLinkDTO
+	if err := c.Bind(&linkDTO); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err)
+	}
+	idParam, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err)
+	}
+	linkDTO.TeamId = idParam
+	if err := c.Validate(&linkDTO); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err)
+	}
+
+	err = s.db.CreateTeamUserLink(model.NewTeamUserLinkData{
+		TeamId: linkDTO.TeamId,
+		UserId: linkDTO.UserId,
+		Role:   linkDTO.Role,
+	})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	return c.JSON(http.StatusCreated, map[string]any{
+		"message": "Link created",
+	})
+
+}
+
+func (s *Server) createUserHandler(c echo.Context) error {
+	var userDTO model.UserDTO
+	if err := c.Bind(&userDTO); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err)
+	}
+	if err := c.Validate(&userDTO); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err)
+	}
+
+	pwHash, err := auth.HashPassword(userDTO.Password)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	id, err := s.db.CreateUser(model.NewUserData{
+		Name:         userDTO.Name,
+		PasswordHash: pwHash,
+	})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	return c.JSON(http.StatusCreated, map[string]any{
+		"message": "User created",
+		"id":      id,
+	})
+}
+
+// TODO: IMPLEMENT!
+func (s *Server) signInHandler(c echo.Context) error {
+	return fmt.Errorf("NOT IMPLEMENTED YET")
 }
 
 func (s *Server) createAppHandler(c echo.Context) error {

@@ -41,7 +41,7 @@ func (s *Server) APIKeyMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-func (s *Server) AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+func (s *Server) AppAuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		authSecret := c.Request().Header.Get("Authorization")
 		if authSecret == "" {
