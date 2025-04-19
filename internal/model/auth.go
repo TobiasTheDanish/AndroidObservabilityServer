@@ -11,6 +11,12 @@ type NewAuthSessionData struct {
 	Expiry int64
 }
 
+type AuthSessionEntity struct {
+	Id     string
+	UserId int
+	Expiry int64
+}
+
 type NewTeamData struct {
 	Name string
 }
@@ -48,6 +54,12 @@ type TeamUserLinkDTO struct {
 }
 
 type NewApplicationData struct {
+	Name   string
+	TeamId int
+}
+
+type ApplicationEntity struct {
+	Id     int
 	Name   string
 	TeamId int
 }

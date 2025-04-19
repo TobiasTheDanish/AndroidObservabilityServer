@@ -48,11 +48,22 @@ func (s *Server) AppAuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 			return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
 		}
 
+		if !strings.HasPrefix(authSecret, "Bearer ") {
+			return echo.NewHTTPError(http.StatusUnauthorized, "Invalid Authorization header. Expected prefix \"Bearer\"")
+		}
+
 		authSecret = strings.TrimPrefix(authSecret, "Bearer ")
 
-		if authSecret != apiAuthSecret {
+		session, err := s.db.GetAuthSession(authSecret)
+		if err != nil {
 			return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
 		}
+
+		if authSecret != session.Id {
+			return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+		}
+
+		c.Set("session", session)
 
 		return next(c)
 	}

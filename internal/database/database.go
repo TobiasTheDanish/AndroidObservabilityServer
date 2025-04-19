@@ -23,25 +23,31 @@ import (
 // Service represents a service that interacts with a database.
 type Service interface {
 	CreateTeam(data model.NewTeamData) (int, error)
+
 	CreateUser(data model.NewUserData) (int, error)
 	GetUserByName(username string) (model.UserEntity, error)
+	GetUserById(id int) (model.UserEntity, error)
+
 	CreateTeamUserLink(data model.NewTeamUserLinkData) error
+	ValidateTeamUserLink(teamId, userId int) bool
+
 	CreateAuthSession(data model.NewAuthSessionData) error
+	GetAuthSession(sessionId string) (model.AuthSessionEntity, error)
 
 	CreateApplication(data model.NewApplicationData) (int, error)
+	GetApplication(id int) (model.ApplicationEntity, error)
+
 	CreateApiKey(data model.NewApiKeyData) error
+	// Validates that the given apiKey exists in the database and is active
+	ValidateApiKey(string) bool
+	// Returns the id of the owner of the ApiKey
+	GetAppId(apiKey string) (int, error)
 
 	CreateInstallation(data model.NewInstallationData) error
 	CreateSession(data model.NewSessionData) error
 	MarkSessionCrashed(id string, ownerId int) error
 	CreateEvent(data model.NewEventData) error
 	CreateTrace(data model.NewTraceData) error
-
-	// Validates that the given apiKey exists in the database and is active
-	ValidateApiKey(string) bool
-
-	// Returns the id of the owner of the ApiKey
-	GetAppId(apiKey string) (int, error)
 
 	// Health returns a map of health status information.
 	// The keys and values in the map are service-specific.
@@ -157,10 +163,19 @@ func (s *service) CreateUser(data model.NewUserData) (int, error) {
 }
 
 func (s *service) GetUserByName(username string) (model.UserEntity, error) {
-	query := "SELECT (id, name, pw_hash) FROM public.ob_users WHERE name = $1"
+	query := "SELECT id, name, pw_hash FROM public.ob_users WHERE name = $1"
 
 	var entity model.UserEntity
 	err := s.db.QueryRow(query, username).Scan(&entity.Id, &entity.Name, entity.PasswordHash)
+
+	return entity, err
+}
+
+func (s *service) GetUserById(id int) (model.UserEntity, error) {
+	query := "SELECT id, name, pw_hash FROM public.ob_users WHERE id = $1"
+
+	var entity model.UserEntity
+	err := s.db.QueryRow(query, id).Scan(&entity.Id, &entity.Name, entity.PasswordHash)
 
 	return entity, err
 }
@@ -173,12 +188,37 @@ func (s *service) CreateTeamUserLink(data model.NewTeamUserLinkData) error {
 	return err
 }
 
+func (s *service) ValidateTeamUserLink(teamId, userId int) bool {
+	query := "SELECT EXISTS(SELECT 1 FROM public.ob_team_users WHERE team_id = $1 AND user_id = $2)"
+
+	var exists bool
+	if err := s.db.QueryRow(query, teamId, userId).Scan(&exists); err != nil {
+		log.Printf("Error validating team user link: %v\n", err)
+		return false
+	}
+
+	return exists
+}
+
 func (s *service) CreateAuthSession(data model.NewAuthSessionData) error {
 	query := "INSERT INTO public.ob_auth_sessions(id, user_id, expiry) VALUES ($1, $2, $3)"
 
 	_, err := s.db.Exec(query, data.Id, data.UserId, data.Expiry)
 
 	return err
+}
+
+func (s *service) GetAuthSession(sessionId string) (model.AuthSessionEntity, error) {
+	query := "SELECT id, user_id, expiry public.ob_auth_sessions WHERE id = $1"
+
+	var res model.AuthSessionEntity
+	err := s.db.QueryRow(query, sessionId).Scan(
+		&res.Id,
+		&res.UserId,
+		&res.Expiry,
+	)
+
+	return res, err
 }
 
 func (s *service) CreateApplication(data model.NewApplicationData) (int, error) {
@@ -188,6 +228,19 @@ func (s *service) CreateApplication(data model.NewApplicationData) (int, error) 
 	err := s.db.QueryRow(query, data.Name, data.TeamId).Scan(&id)
 
 	return id, err
+}
+
+func (s *service) GetApplication(id int) (model.ApplicationEntity, error) {
+	query := "SELECT id, name, team_id public.ob_applications WHERE id = $1"
+
+	var res model.ApplicationEntity
+	err := s.db.QueryRow(query, id).Scan(
+		&res.Id,
+		&res.Name,
+		&res.TeamId,
+	)
+
+	return res, err
 }
 
 func (s *service) CreateApiKey(data model.NewApiKeyData) error {

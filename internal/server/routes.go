@@ -19,18 +19,20 @@ func (s *Server) RegisterRoutes() http.Handler {
 	e.Use(middleware.Recover())
 
 	e.GET("/", s.HelloWorldHandler)
-
 	e.GET("/health", s.healthHandler)
 
-	e.POST("/api/auth/teams", s.createTeamHandler)
-	e.POST("/api/auth/teams/:id/users", s.createTeamUserLinkHandler)
-	e.POST("/api/auth/users", s.createUserHandler)
-	e.POST("/api/auth/sign-in", s.signInHandler)
+	// AUTH endpoints
+	e.POST("/auth/teams", s.createTeamHandler)
+	e.POST("/auth/teams/:id/users", s.createTeamUserLinkHandler)
+	e.POST("/auth/users", s.createUserHandler)
+	e.POST("/auth/sign-in", s.signInHandler)
 
-	authV1 := e.Group("/api/auth/apps", s.AppAuthMiddleware)
-	authV1.POST("/", s.createAppHandler)
-	authV1.POST("/:id/keys", s.createKeyHandler)
+	// APP v1 endpoints
+	appV1 := e.Group("/app/v1", s.AppAuthMiddleware)
+	appV1.POST("/apps", s.createAppHandler)
+	appV1.POST("/apps/:id/keys", s.createKeyHandler)
 
+	// Api v1 endpoints
 	apiV1 := e.Group("/api/v1", s.APIKeyMiddleware)
 	apiV1.POST("/installations", s.createInstallationHandler)
 	apiV1.POST("/collection", s.createCollectionHandler)
@@ -133,7 +135,6 @@ func (s *Server) createUserHandler(c echo.Context) error {
 	})
 }
 
-// TODO: IMPLEMENT!
 func (s *Server) signInHandler(c echo.Context) error {
 	var dto model.SignInDTO
 	if err := c.Bind(&dto); err != nil {
@@ -185,6 +186,11 @@ func (s *Server) createAppHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
 
+	session := c.Get("session").(model.AuthSessionEntity)
+	if !s.db.ValidateTeamUserLink(appDTO.TeamId, session.UserId) {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Access denied to this team")
+	}
+
 	id, err := s.db.CreateApplication(model.NewApplicationData{
 		Name: appDTO.Name,
 	})
@@ -209,6 +215,17 @@ func (s *Server) createKeyHandler(c echo.Context) error {
 	apiKeyDTO.AppId = id
 	if err := c.Validate(&apiKeyDTO); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
+	}
+
+	session := c.Get("session").(model.AuthSessionEntity)
+	app, err := s.db.GetApplication(apiKeyDTO.AppId)
+	if err != nil {
+		log.Printf("Error getting application: %v\n", err)
+		return echo.NewHTTPError(http.StatusNotFound, "No application found with provided id")
+	}
+
+	if !s.db.ValidateTeamUserLink(app.TeamId, session.UserId) {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Access denied to this app")
 	}
 
 	key, err := auth.GenerateApiKey()
