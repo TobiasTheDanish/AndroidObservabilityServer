@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS public.ob_teams (
 
 CREATE TABLE IF NOT EXISTS public.ob_users (
 	id SERIAL PRIMARY KEY,
-	name TEXT NOT NULL,
+	name TEXT NOT NULL UNIQUE,
 	pw_hash TEXT NOT NULL
 );
 
