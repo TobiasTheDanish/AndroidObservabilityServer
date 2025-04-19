@@ -135,7 +135,45 @@ func (s *Server) createUserHandler(c echo.Context) error {
 
 // TODO: IMPLEMENT!
 func (s *Server) signInHandler(c echo.Context) error {
-	return fmt.Errorf("NOT IMPLEMENTED YET")
+	var dto model.SignInDTO
+	if err := c.Bind(&dto); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err)
+	}
+	if err := c.Validate(&dto); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err)
+	}
+
+	userEntity, err := s.db.GetUserByName(dto.Username)
+	if err != nil || !auth.ValidatePassword(
+		dto.Password,
+		userEntity.PasswordHash,
+	) {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Invalid username or password")
+	}
+
+	sessionId, err := auth.GenerateSessionToken()
+	if err != nil {
+		log.Printf("Error generating session id: %v\n", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "Could not create session id")
+	}
+	sessionExpiry := auth.GetExpiryForSession()
+	// 4. Store session token in datbase
+
+	err = s.db.CreateAuthSession(model.NewAuthSessionData{
+		Id:     sessionId,
+		UserId: userEntity.Id,
+		Expiry: sessionExpiry,
+	})
+	if err != nil {
+		log.Printf("Error storing session id: %v\n", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "Could not create session id")
+	}
+
+	// 5. Return 201 and session token
+	return c.JSON(http.StatusCreated, map[string]string{
+		"message":   "Sign in successful",
+		"sessionId": sessionId,
+	})
 }
 
 func (s *Server) createAppHandler(c echo.Context) error {

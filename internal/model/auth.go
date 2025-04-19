@@ -1,5 +1,16 @@
 package model
 
+type SignInDTO struct {
+	Username string `json:"username" validate:"required"`
+	Password string `json:"password" validate:"required"`
+}
+
+type NewAuthSessionData struct {
+	Id     string
+	UserId int
+	Expiry int64
+}
+
 type NewTeamData struct {
 	Name string
 }
@@ -9,6 +20,12 @@ type TeamDTO struct {
 }
 
 type NewUserData struct {
+	Name         string
+	PasswordHash string
+}
+
+type UserEntity struct {
+	Id           int
 	Name         string
 	PasswordHash string
 }

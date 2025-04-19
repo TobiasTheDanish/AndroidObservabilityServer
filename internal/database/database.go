@@ -24,7 +24,10 @@ import (
 type Service interface {
 	CreateTeam(data model.NewTeamData) (int, error)
 	CreateUser(data model.NewUserData) (int, error)
+	GetUserByName(username string) (model.UserEntity, error)
 	CreateTeamUserLink(data model.NewTeamUserLinkData) error
+	CreateAuthSession(data model.NewAuthSessionData) error
+
 	CreateApplication(data model.NewApplicationData) (int, error)
 	CreateApiKey(data model.NewApiKeyData) error
 
@@ -153,10 +156,27 @@ func (s *service) CreateUser(data model.NewUserData) (int, error) {
 	return id, err
 }
 
+func (s *service) GetUserByName(username string) (model.UserEntity, error) {
+	query := "SELECT (id, name, pw_hash) FROM public.ob_users WHERE name = $1"
+
+	var entity model.UserEntity
+	err := s.db.QueryRow(query, username).Scan(&entity.Id, &entity.Name, entity.PasswordHash)
+
+	return entity, err
+}
+
 func (s *service) CreateTeamUserLink(data model.NewTeamUserLinkData) error {
 	query := "INSERT INTO public.ob_team_users(team_id, user_id, role) VALUES ($1, $2, $3)"
 
 	_, err := s.db.Exec(query, data.TeamId, data.UserId, data.Role)
+
+	return err
+}
+
+func (s *service) CreateAuthSession(data model.NewAuthSessionData) error {
+	query := "INSERT INTO public.ob_auth_sessions(id, user_id, expiry) VALUES ($1, $2, $3)"
+
+	_, err := s.db.Exec(query, data.Id, data.UserId, data.Expiry)
 
 	return err
 }
