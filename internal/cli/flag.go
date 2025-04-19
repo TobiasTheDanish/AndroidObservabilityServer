@@ -33,6 +33,7 @@ func ParseFlags(args []string) (bool, Command) {
 	cmds := Commands{
 		AppCommand(),
 		ApiKeyCommand(),
+		SignInCommand(),
 	}
 
 	if len(args) < 1 {
