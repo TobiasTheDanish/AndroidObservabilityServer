@@ -52,19 +52,71 @@ func TestCreateUser(t *testing.T) {
 	}
 }
 
+func TestGetUserByName(t *testing.T) {
+	srv := New()
+	pwHash, _ := auth.HashPassword("Abc123")
+
+	_, err := srv.CreateUser(model.NewUserData{
+		Name:         "Test User 2",
+		PasswordHash: pwHash,
+	})
+	if err != nil {
+		t.Fatalf("Creating user failed: %v\n", err)
+	}
+
+	_, err = srv.GetUserByName("Test User 2")
+	if err != nil {
+		t.Errorf("Getting user by name failed: %v\n", err)
+	}
+
+	user, err := srv.GetUserByName("Unknown User")
+	if err == nil {
+		t.Errorf("Getting user by unknown name was successful, but it should NOT! Fetched user: %v", user)
+	}
+}
+
+func TestGetUserById(t *testing.T) {
+	srv := New()
+	pwHash, _ := auth.HashPassword("Abc123")
+
+	id, err := srv.CreateUser(model.NewUserData{
+		Name:         "Test User 3",
+		PasswordHash: pwHash,
+	})
+	if err != nil {
+		t.Fatalf("Creating user failed: %v\n", err)
+	}
+
+	_, err = srv.GetUserById(id)
+	if err != nil {
+		t.Errorf("Getting user by id failed: %v\n", err)
+	}
+
+	user, err := srv.GetUserById(-1)
+	if err == nil {
+		t.Errorf("Getting user by unknown id was successful, but it should NOT! Fetched user: %v", user)
+	}
+}
+
 func TestCreateTeamUserLink(t *testing.T) {
 	srv := New()
 
-	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
+	teamId, err := srv.CreateTeam(model.NewTeamData{Name: "Test Team 2"})
+	if err != nil {
+		t.Fatalf("Creating team failed: %v\n", err)
+	}
 	pwHash, err := auth.HashPassword("Abc123")
 	if err != nil {
 		t.Fatalf("Error hashing pw: %v\n", err)
 	}
 
-	userId, _ := srv.CreateUser(model.NewUserData{
-		Name:         "Test User",
+	userId, err := srv.CreateUser(model.NewUserData{
+		Name:         "Test User 4",
 		PasswordHash: pwHash,
 	})
+	if err != nil {
+		t.Fatalf("Creating user failed: %v\n", err)
+	}
 
 	err = srv.CreateTeamUserLink(model.NewTeamUserLinkData{
 		TeamId: teamId,
@@ -74,6 +126,42 @@ func TestCreateTeamUserLink(t *testing.T) {
 
 	if err != nil || userId == -1 {
 		t.Fatalf("Creating team-user link failed. %v\n", err)
+	}
+
+	if !srv.ValidateTeamUserLink(teamId, userId) {
+		t.Fatalf("Team-User link was not valid, when it should!")
+	}
+}
+
+func TestCreateAuthSession(t *testing.T) {
+	srv := New()
+	pwHash, _ := auth.HashPassword("Abc123")
+
+	userId, err := srv.CreateUser(model.NewUserData{
+		Name:         "Test User 5",
+		PasswordHash: pwHash,
+	})
+	if err != nil {
+		t.Fatalf("Creating user failed: %v\n", err)
+	}
+
+	sessionId, err := auth.GenerateSessionToken()
+	if err != nil {
+		t.Fatalf("Generating session token failed: %v\n", err)
+	}
+
+	err = srv.CreateAuthSession(model.NewAuthSessionData{
+		Id:     sessionId,
+		UserId: userId,
+		Expiry: auth.GetExpiryForSession(),
+	})
+	if err != nil {
+		t.Fatalf("Creating auth session failed: %v\n", err)
+	}
+
+	_, err = srv.GetAuthSession(sessionId)
+	if err != nil {
+		t.Fatalf("Getting auth session failed: %v\n", err)
 	}
 }
 
@@ -87,6 +175,11 @@ func TestCreateApp(t *testing.T) {
 	})
 	if err != nil || appId == -1 {
 		t.Fatalf("Creating app failed. %v\n", err)
+	}
+
+	_, err = srv.GetApplication(appId)
+	if err != nil || appId == -1 {
+		t.Fatalf("Getting app failed. %v\n", err)
 	}
 }
 

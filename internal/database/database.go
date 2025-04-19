@@ -166,7 +166,7 @@ func (s *service) GetUserByName(username string) (model.UserEntity, error) {
 	query := "SELECT id, name, pw_hash FROM public.ob_users WHERE name = $1"
 
 	var entity model.UserEntity
-	err := s.db.QueryRow(query, username).Scan(&entity.Id, &entity.Name, entity.PasswordHash)
+	err := s.db.QueryRow(query, username).Scan(&entity.Id, &entity.Name, &entity.PasswordHash)
 
 	return entity, err
 }
@@ -175,7 +175,7 @@ func (s *service) GetUserById(id int) (model.UserEntity, error) {
 	query := "SELECT id, name, pw_hash FROM public.ob_users WHERE id = $1"
 
 	var entity model.UserEntity
-	err := s.db.QueryRow(query, id).Scan(&entity.Id, &entity.Name, entity.PasswordHash)
+	err := s.db.QueryRow(query, id).Scan(&entity.Id, &entity.Name, &entity.PasswordHash)
 
 	return entity, err
 }
@@ -209,7 +209,7 @@ func (s *service) CreateAuthSession(data model.NewAuthSessionData) error {
 }
 
 func (s *service) GetAuthSession(sessionId string) (model.AuthSessionEntity, error) {
-	query := "SELECT id, user_id, expiry public.ob_auth_sessions WHERE id = $1"
+	query := "SELECT id, user_id, expiry FROM public.ob_auth_sessions WHERE id = $1"
 
 	var res model.AuthSessionEntity
 	err := s.db.QueryRow(query, sessionId).Scan(
@@ -231,7 +231,7 @@ func (s *service) CreateApplication(data model.NewApplicationData) (int, error) 
 }
 
 func (s *service) GetApplication(id int) (model.ApplicationEntity, error) {
-	query := "SELECT id, name, team_id public.ob_applications WHERE id = $1"
+	query := "SELECT id, name, team_id FROM public.ob_applications WHERE id = $1"
 
 	var res model.ApplicationEntity
 	err := s.db.QueryRow(query, id).Scan(
