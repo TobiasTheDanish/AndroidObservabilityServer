@@ -6,12 +6,14 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"os"
 )
 
 type appCommand struct {
 	fs     *flag.FlagSet
 	create bool
 	name   string
+	teamId int
 	list   bool
 }
 
@@ -22,6 +24,7 @@ func AppCommand() Command {
 
 	cmd.fs.BoolVar(&cmd.create, "create", false, "Create a new app. Name must be specified when creating a new app")
 	cmd.fs.StringVar(&cmd.name, "name", "", "Name of the app")
+	cmd.fs.IntVar(&cmd.teamId, "teamId", -1, "Id of the team, which the app belongs to")
 	cmd.fs.BoolVar(&cmd.list, "list", false, "List all current apps. Not implmented yet")
 
 	return cmd
@@ -33,7 +36,6 @@ func (c *appCommand) Init(args []string) error {
 
 // TODO: add support for list command
 func (c *appCommand) Run() {
-
 	if !(c.create || c.list) {
 		fmt.Println("Missing create or list flag")
 		c.fs.Usage()
@@ -46,14 +48,14 @@ func (c *appCommand) Run() {
 		return
 	}
 
-	if c.create && c.name == "" {
-		fmt.Println("Name must be specified when creating app")
+	if c.create && (c.name == "" || c.teamId == -1) {
+		fmt.Println("Name and teamId must be specified when creating app")
 		c.fs.Usage()
 		return
 	}
 
 	if c.create {
-		err := createApp(c.name)
+		err := createApp(c.name, c.teamId)
 		if err != nil {
 			fmt.Printf("Error creating new app: %v\n", err)
 		}
@@ -72,16 +74,18 @@ func (c *appCommand) Description() string {
 	return "Create new or list current apps"
 }
 
-func createApp(name string) error {
-	body := map[string]string{
-		"name": name,
+func createApp(name string, teamId int) error {
+	secret := os.Getenv("OBSERVE_CLI_SESSION")
+	body := map[string]any{
+		"name":   name,
+		"teamId": teamId,
 	}
 
 	jsonBytes, err := json.Marshal(body)
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/auth/apps", baseUrl), bytes.NewReader(jsonBytes))
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/app/v1/apps", baseUrl), bytes.NewReader(jsonBytes))
 	if err != nil {
 		return err
 	}

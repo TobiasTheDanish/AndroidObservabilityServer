@@ -28,19 +28,169 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestCreateOwner(t *testing.T) {
+func TestCreateTeam(t *testing.T) {
+	srv := New()
+	teamId, err := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
+	if err != nil || teamId == -1 {
+		t.Fatalf("Creating team failed. %v\n", err)
+	}
+}
+
+func TestCreateUser(t *testing.T) {
+	srv := New()
+	pwHash, err := auth.HashPassword("Abc123")
+	if err != nil {
+		t.Fatalf("Error hashing pw: %v\n", err)
+	}
+
+	userId, err := srv.CreateUser(model.NewUserData{
+		Name:         "Test User",
+		PasswordHash: pwHash,
+	})
+	if err != nil || userId == -1 {
+		t.Fatalf("Creating user failed. %v\n", err)
+	}
+}
+
+func TestGetUserByName(t *testing.T) {
+	srv := New()
+	pwHash, _ := auth.HashPassword("Abc123")
+
+	_, err := srv.CreateUser(model.NewUserData{
+		Name:         "Test User 2",
+		PasswordHash: pwHash,
+	})
+	if err != nil {
+		t.Fatalf("Creating user failed: %v\n", err)
+	}
+
+	_, err = srv.GetUserByName("Test User 2")
+	if err != nil {
+		t.Errorf("Getting user by name failed: %v\n", err)
+	}
+
+	user, err := srv.GetUserByName("Unknown User")
+	if err == nil {
+		t.Errorf("Getting user by unknown name was successful, but it should NOT! Fetched user: %v", user)
+	}
+}
+
+func TestGetUserById(t *testing.T) {
+	srv := New()
+	pwHash, _ := auth.HashPassword("Abc123")
+
+	id, err := srv.CreateUser(model.NewUserData{
+		Name:         "Test User 3",
+		PasswordHash: pwHash,
+	})
+	if err != nil {
+		t.Fatalf("Creating user failed: %v\n", err)
+	}
+
+	_, err = srv.GetUserById(id)
+	if err != nil {
+		t.Errorf("Getting user by id failed: %v\n", err)
+	}
+
+	user, err := srv.GetUserById(-1)
+	if err == nil {
+		t.Errorf("Getting user by unknown id was successful, but it should NOT! Fetched user: %v", user)
+	}
+}
+
+func TestCreateTeamUserLink(t *testing.T) {
 	srv := New()
 
-	ownerId, err := srv.CreateApplication(model.NewApplicationData{Name: "TestOwner"})
-	if err != nil || ownerId == -1 {
-		t.Fatalf("Creating owner failed. %v\n", err)
+	teamId, err := srv.CreateTeam(model.NewTeamData{Name: "Test Team 2"})
+	if err != nil {
+		t.Fatalf("Creating team failed: %v\n", err)
+	}
+	pwHash, err := auth.HashPassword("Abc123")
+	if err != nil {
+		t.Fatalf("Error hashing pw: %v\n", err)
+	}
+
+	userId, err := srv.CreateUser(model.NewUserData{
+		Name:         "Test User 4",
+		PasswordHash: pwHash,
+	})
+	if err != nil {
+		t.Fatalf("Creating user failed: %v\n", err)
+	}
+
+	err = srv.CreateTeamUserLink(model.NewTeamUserLinkData{
+		TeamId: teamId,
+		UserId: userId,
+		Role:   "User",
+	})
+
+	if err != nil || userId == -1 {
+		t.Fatalf("Creating team-user link failed. %v\n", err)
+	}
+
+	if !srv.ValidateTeamUserLink(teamId, userId) {
+		t.Fatalf("Team-User link was not valid, when it should!")
+	}
+}
+
+func TestCreateAuthSession(t *testing.T) {
+	srv := New()
+	pwHash, _ := auth.HashPassword("Abc123")
+
+	userId, err := srv.CreateUser(model.NewUserData{
+		Name:         "Test User 5",
+		PasswordHash: pwHash,
+	})
+	if err != nil {
+		t.Fatalf("Creating user failed: %v\n", err)
+	}
+
+	sessionId, err := auth.GenerateSessionToken()
+	if err != nil {
+		t.Fatalf("Generating session token failed: %v\n", err)
+	}
+
+	err = srv.CreateAuthSession(model.NewAuthSessionData{
+		Id:     sessionId,
+		UserId: userId,
+		Expiry: auth.GetExpiryForSession(),
+	})
+	if err != nil {
+		t.Fatalf("Creating auth session failed: %v\n", err)
+	}
+
+	_, err = srv.GetAuthSession(sessionId)
+	if err != nil {
+		t.Fatalf("Getting auth session failed: %v\n", err)
+	}
+}
+
+func TestCreateApp(t *testing.T) {
+	srv := New()
+
+	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
+	appId, err := srv.CreateApplication(model.NewApplicationData{
+		Name:   "TestApp",
+		TeamId: teamId,
+	})
+	if err != nil || appId == -1 {
+		t.Fatalf("Creating app failed. %v\n", err)
+	}
+
+	_, err = srv.GetApplication(appId)
+	if err != nil || appId == -1 {
+		t.Fatalf("Getting app failed. %v\n", err)
 	}
 }
 
 func TestValidateApiKey(t *testing.T) {
 	srv := New()
 
-	ownerId, _ := srv.CreateApplication(model.NewApplicationData{Name: "TestOwner"})
+	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
+	appId, err := srv.CreateApplication(model.NewApplicationData{
+		Name:   "TestApp",
+		TeamId: teamId,
+	})
 
 	key, err := auth.GenerateApiKey()
 	if err != nil {
@@ -51,7 +201,7 @@ func TestValidateApiKey(t *testing.T) {
 
 	srv.CreateApiKey(model.NewApiKeyData{
 		Key:   hash,
-		AppId: ownerId,
+		AppId: appId,
 	})
 
 	if !srv.ValidateApiKey(hash) {
@@ -62,19 +212,23 @@ func TestValidateApiKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetOwnerId failed with error: %v\n", err)
 	}
-	if id != ownerId {
-		t.Fatalf("Owner ids did not match. expected %d, but got %d\n", ownerId, id)
+	if id != appId {
+		t.Fatalf("Owner ids did not match. expected %d, but got %d\n", appId, id)
 	}
 }
 
 func TestCreateInstallation(t *testing.T) {
 	srv := New()
 
-	ownerId, _ := srv.CreateApplication(model.NewApplicationData{Name: "TestOwner"})
+	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
+	appId, _ := srv.CreateApplication(model.NewApplicationData{
+		Name:   "TestApp",
+		TeamId: teamId,
+	})
 
 	data := model.NewInstallationData{
 		Id:         "TestInstallation123",
-		OwnerId:    ownerId,
+		AppId:      appId,
 		SdkVersion: 31,
 		Model:      "MT9556",
 		Brand:      "Newland",
@@ -94,12 +248,16 @@ func TestCreateInstallation(t *testing.T) {
 func TestCreateSession(t *testing.T) {
 	srv := New()
 
-	ownerId, _ := srv.CreateApplication(model.NewApplicationData{Name: "TestOwner"})
+	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
+	appId, _ := srv.CreateApplication(model.NewApplicationData{
+		Name:   "TestApp",
+		TeamId: teamId,
+	})
 
 	data := model.NewSessionData{
 		Id:             "TestSession123",
 		InstallationId: "InstallationIdForTestSession123",
-		AppId:          ownerId,
+		AppId:          appId,
 		CreatedAt:      1,
 		Crashed:        false,
 	}
@@ -118,12 +276,16 @@ func TestCreateSession(t *testing.T) {
 func TestMarkSessionCrashed(t *testing.T) {
 	srv := New()
 
-	ownerId, _ := srv.CreateApplication(model.NewApplicationData{Name: "TestOwner"})
+	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
+	appId, _ := srv.CreateApplication(model.NewApplicationData{
+		Name:   "TestApp",
+		TeamId: teamId,
+	})
 
 	data := model.NewSessionData{
 		Id:             "TestSession223",
 		InstallationId: "InstallationIdForTestSession123",
-		AppId:          ownerId,
+		AppId:          appId,
 		CreatedAt:      1,
 		Crashed:        false,
 	}
@@ -133,7 +295,7 @@ func TestMarkSessionCrashed(t *testing.T) {
 		t.Fatalf("CreateSession failed: %v\n", err)
 	}
 
-	err = srv.MarkSessionCrashed(data.Id, ownerId)
+	err = srv.MarkSessionCrashed(data.Id, appId)
 	if err != nil {
 		t.Fatalf("MarkSessionCrashed failed: %v\n", err)
 	}
@@ -142,12 +304,16 @@ func TestMarkSessionCrashed(t *testing.T) {
 func TestCreateEvent(t *testing.T) {
 	srv := New()
 
-	ownerId, _ := srv.CreateApplication(model.NewApplicationData{Name: "TestOwner"})
+	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
+	appId, _ := srv.CreateApplication(model.NewApplicationData{
+		Name:   "TestApp",
+		TeamId: teamId,
+	})
 
 	sessionData := model.NewSessionData{
 		Id:             "TestSession1234",
 		InstallationId: "InstallationIdForTestSession123",
-		AppId:          ownerId,
+		AppId:          appId,
 		CreatedAt:      1,
 		Crashed:        false,
 	}
@@ -157,7 +323,7 @@ func TestCreateEvent(t *testing.T) {
 	eventData := model.NewEventData{
 		Id:             "TestEvent",
 		SessionId:      sessionData.Id,
-		AppId:          ownerId,
+		AppId:          appId,
 		Type:           "TestEvent",
 		SerializedData: "{}",
 		CreatedAt:      2,
@@ -172,12 +338,16 @@ func TestCreateEvent(t *testing.T) {
 func TestCreateTrace(t *testing.T) {
 	srv := New()
 
-	ownerId, _ := srv.CreateApplication(model.NewApplicationData{Name: "TestOwner"})
+	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
+	appId, _ := srv.CreateApplication(model.NewApplicationData{
+		Name:   "TestApp",
+		TeamId: teamId,
+	})
 
 	sessionData := model.NewSessionData{
 		Id:             "TestSession12345",
 		InstallationId: "InstallationIdForTestSession123",
-		AppId:          ownerId,
+		AppId:          appId,
 		CreatedAt:      1,
 		Crashed:        false,
 	}
@@ -189,7 +359,7 @@ func TestCreateTrace(t *testing.T) {
 		SessionId:    sessionData.Id,
 		GroupId:      "TestGroup",
 		ParentId:     "",
-		AppId:        ownerId,
+		AppId:        appId,
 		Name:         "TraceTest",
 		Status:       "Ok",
 		ErrorMessage: "",

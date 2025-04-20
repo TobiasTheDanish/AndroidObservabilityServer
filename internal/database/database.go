@@ -22,20 +22,34 @@ import (
 
 // Service represents a service that interacts with a database.
 type Service interface {
+	CreateTeam(data model.NewTeamData) (int, error)
+	GetTeamsForUser(userId int) ([]model.TeamEntity, error)
+
+	CreateUser(data model.NewUserData) (int, error)
+	GetUserByName(username string) (model.UserEntity, error)
+	GetUserById(id int) (model.UserEntity, error)
+
+	CreateTeamUserLink(data model.NewTeamUserLinkData) error
+	ValidateTeamUserLink(teamId, userId int) bool
+
+	CreateAuthSession(data model.NewAuthSessionData) error
+	GetAuthSession(sessionId string) (model.AuthSessionEntity, error)
+	DeleteAuthSession(sessionId string) error
+
 	CreateApplication(data model.NewApplicationData) (int, error)
+	GetApplication(id int) (model.ApplicationEntity, error)
+
 	CreateApiKey(data model.NewApiKeyData) error
+	// Validates that the given apiKey exists in the database and is active
+	ValidateApiKey(string) bool
+	// Returns the id of the owner of the ApiKey
+	GetAppId(apiKey string) (int, error)
 
 	CreateInstallation(data model.NewInstallationData) error
 	CreateSession(data model.NewSessionData) error
 	MarkSessionCrashed(id string, ownerId int) error
 	CreateEvent(data model.NewEventData) error
 	CreateTrace(data model.NewTraceData) error
-
-	// Validates that the given apiKey exists in the database and is active
-	ValidateApiKey(string) bool
-
-	// Returns the id of the owner of the ApiKey
-	GetAppId(apiKey string) (int, error)
 
 	// Health returns a map of health status information.
 	// The keys and values in the map are service-specific.
@@ -132,13 +146,149 @@ func New() Service {
 	return dbInstance
 }
 
-func (s *service) CreateApplication(data model.NewApplicationData) (int, error) {
-	query := "INSERT INTO public.ob_applications(name) VALUES ($1) RETURNING id"
+func (s *service) CreateTeam(data model.NewTeamData) (int, error) {
+	query := "INSERT INTO public.ob_teams(name) VALUES ($1) RETURNING id"
 
 	var id int
 	err := s.db.QueryRow(query, data.Name).Scan(&id)
 
 	return id, err
+}
+
+func (s *service) GetTeamsForUser(userId int) ([]model.TeamEntity, error) {
+	query := "SELECT t.id, t.name FROM public.ob_teams AS t INNER JOIN public.ob_team_users AS tu ON tu.team_id = t.id WHERE tu.user_id = $1"
+
+	rows, err := s.db.Query(query, userId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	teams := make([]model.TeamEntity, 0)
+	for rows.Next() {
+		var team model.TeamEntity
+		err := rows.Scan(&team.Id, &team.Name)
+		if err != nil {
+			return nil, err
+		}
+		teams = append(teams, team)
+	}
+
+	return teams, nil
+}
+
+func (s *service) CreateUser(data model.NewUserData) (int, error) {
+	query := "INSERT INTO public.ob_users(name, pw_hash) VALUES ($1, $2) RETURNING id"
+
+	var id int
+	err := s.db.QueryRow(query, data.Name, data.PasswordHash).Scan(&id)
+
+	return id, err
+}
+
+func (s *service) GetUserByName(username string) (model.UserEntity, error) {
+	query := "SELECT id, name, pw_hash FROM public.ob_users WHERE name = $1"
+
+	var entity model.UserEntity
+	err := s.db.QueryRow(query, username).Scan(&entity.Id, &entity.Name, &entity.PasswordHash)
+
+	return entity, err
+}
+
+func (s *service) GetUserById(id int) (model.UserEntity, error) {
+	query := "SELECT id, name, pw_hash FROM public.ob_users WHERE id = $1"
+
+	var entity model.UserEntity
+	err := s.db.QueryRow(query, id).Scan(&entity.Id, &entity.Name, &entity.PasswordHash)
+
+	return entity, err
+}
+
+func (s *service) CreateTeamUserLink(data model.NewTeamUserLinkData) error {
+	query := "INSERT INTO public.ob_team_users(team_id, user_id, role) VALUES ($1, $2, $3)"
+
+	_, err := s.db.Exec(query, data.TeamId, data.UserId, data.Role)
+
+	return err
+}
+
+func (s *service) ValidateTeamUserLink(teamId, userId int) bool {
+	query := "SELECT EXISTS(SELECT 1 FROM public.ob_team_users WHERE team_id = $1 AND user_id = $2)"
+
+	var exists bool
+	if err := s.db.QueryRow(query, teamId, userId).Scan(&exists); err != nil {
+		log.Printf("Error validating team user link: %v\n", err)
+		return false
+	}
+
+	return exists
+}
+
+func (s *service) CreateAuthSession(data model.NewAuthSessionData) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	// Delete previous sessions for user
+	query := "DELETE FROM public.ob_auth_sessions WHERE user_id = $1"
+	_, err = tx.Exec(query, data.UserId)
+	if err != nil {
+		return err
+	}
+
+	// Insert new session
+	query = "INSERT INTO public.ob_auth_sessions(id, user_id, expiry) VALUES ($1, $2, $3)"
+	_, err = tx.Exec(query, data.Id, data.UserId, data.Expiry)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (s *service) GetAuthSession(sessionId string) (model.AuthSessionEntity, error) {
+	query := "SELECT id, user_id, expiry FROM public.ob_auth_sessions WHERE id = $1"
+
+	var res model.AuthSessionEntity
+	err := s.db.QueryRow(query, sessionId).Scan(
+		&res.Id,
+		&res.UserId,
+		&res.Expiry,
+	)
+
+	return res, err
+}
+
+func (s *service) DeleteAuthSession(sessionId string) error {
+	query := "DELETE FROM public.ob_auth_sessions WHERE id = $1"
+
+	_, err := s.db.Exec(query, sessionId)
+
+	return err
+}
+
+func (s *service) CreateApplication(data model.NewApplicationData) (int, error) {
+	query := "INSERT INTO public.ob_applications(name, team_id) VALUES ($1, $2) RETURNING id"
+
+	var id int
+	err := s.db.QueryRow(query, data.Name, data.TeamId).Scan(&id)
+
+	return id, err
+}
+
+func (s *service) GetApplication(id int) (model.ApplicationEntity, error) {
+	query := "SELECT id, name, team_id FROM public.ob_applications WHERE id = $1"
+
+	var res model.ApplicationEntity
+	err := s.db.QueryRow(query, id).Scan(
+		&res.Id,
+		&res.Name,
+		&res.TeamId,
+	)
+
+	return res, err
 }
 
 func (s *service) CreateApiKey(data model.NewApiKeyData) error {
@@ -187,7 +337,7 @@ func (s *service) MarkSessionCrashed(id string, ownerId int) error {
 }
 
 func (s *service) CreateInstallation(data model.NewInstallationData) error {
-	res, err := s.db.Exec("INSERT INTO public.ob_installations (id, app_id, sdk_version, model, brand) VALUES ($1, $2, $3, $4, $5)", data.Id, data.OwnerId, data.SdkVersion, data.Model, data.Brand)
+	res, err := s.db.Exec("INSERT INTO public.ob_installations (id, app_id, sdk_version, model, brand) VALUES ($1, $2, $3, $4, $5)", data.Id, data.AppId, data.SdkVersion, data.Model, data.Brand)
 	if err != nil {
 		return err
 	}

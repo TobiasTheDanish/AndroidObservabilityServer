@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -41,18 +42,35 @@ func (s *Server) APIKeyMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-func (s *Server) AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+func (s *Server) AppAuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		authSecret := c.Request().Header.Get("Authorization")
 		if authSecret == "" {
 			return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
 		}
 
+		if !strings.HasPrefix(authSecret, "Bearer ") {
+			return echo.NewHTTPError(http.StatusUnauthorized, "Invalid Authorization header. Expected prefix \"Bearer\"")
+		}
+
 		authSecret = strings.TrimPrefix(authSecret, "Bearer ")
 
-		if authSecret != apiAuthSecret {
+		session, err := s.db.GetAuthSession(authSecret)
+		if err != nil {
 			return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
 		}
+
+		if authSecret != session.Id {
+			return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+		}
+
+		nowMillis := time.Now().UnixMilli()
+		if nowMillis >= session.Expiry {
+			s.db.DeleteAuthSession(session.Id)
+			return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+		}
+
+		c.Set("session", session)
 
 		return next(c)
 	}

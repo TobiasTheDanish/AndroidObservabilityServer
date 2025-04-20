@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"os"
 )
 
 type apiKeyCommand struct {
@@ -46,7 +47,8 @@ func (c *apiKeyCommand) Description() string {
 }
 
 func createApiKey(appId int) error {
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/auth/apps/%d/keys", baseUrl, appId), nil)
+	secret := os.Getenv("OBSERVE_CLI_SESSION")
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/app/v1/apps/%d/keys", baseUrl, appId), nil)
 	if err != nil {
 		return err
 	}
