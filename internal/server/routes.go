@@ -192,7 +192,8 @@ func (s *Server) createAppHandler(c echo.Context) error {
 	}
 
 	id, err := s.db.CreateApplication(model.NewApplicationData{
-		Name: appDTO.Name,
+		Name:   appDTO.Name,
+		TeamId: appDTO.TeamId,
 	})
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{

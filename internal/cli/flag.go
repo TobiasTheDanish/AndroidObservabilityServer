@@ -10,7 +10,6 @@ import (
 
 var (
 	baseUrl = os.Getenv("CLI_BASE_URL")
-	secret  = os.Getenv("CLI_SECRET")
 )
 
 type Command interface {
@@ -33,6 +32,7 @@ func ParseFlags(args []string) (bool, Command) {
 	cmds := Commands{
 		AppCommand(),
 		ApiKeyCommand(),
+		RegisterCommand(),
 		SignInCommand(),
 	}
 

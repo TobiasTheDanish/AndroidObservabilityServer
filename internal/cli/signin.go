@@ -40,7 +40,7 @@ func (c *signInCommand) Run() {
 	fmt.Print("Enter password: ")
 	password, _ := reader.ReadString('\n')
 
-	err := signin(c.name, password)
+	err := signIn(c.name, password)
 	if err != nil {
 		fmt.Printf("Signing in failed! Error: %v\n", err)
 	}
@@ -54,7 +54,7 @@ func (c *signInCommand) Description() string {
 	return "Sign in to use the cli"
 }
 
-func signin(name, pw string) error {
+func signIn(name, pw string) error {
 	body := map[string]string{
 		"username": name,
 		"password": pw,
@@ -85,7 +85,7 @@ func signin(name, pw string) error {
 	}
 
 	fmt.Println("Sign in successful!")
-	fmt.Printf("To use the cli run the followin command:\n$ EXPORT OBSERVE_CLI_SESSION=%s\n", resBody["sessionId"])
+	fmt.Printf("To use the cli run the following command:\n$ export OBSERVE_CLI_SESSION=%s\n", resBody["sessionId"])
 
 	return nil
 }

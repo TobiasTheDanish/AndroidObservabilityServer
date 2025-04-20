@@ -33,6 +33,7 @@ type Service interface {
 
 	CreateAuthSession(data model.NewAuthSessionData) error
 	GetAuthSession(sessionId string) (model.AuthSessionEntity, error)
+	DeleteAuthSession(sessionId string) error
 
 	CreateApplication(data model.NewApplicationData) (int, error)
 	GetApplication(id int) (model.ApplicationEntity, error)
@@ -201,11 +202,27 @@ func (s *service) ValidateTeamUserLink(teamId, userId int) bool {
 }
 
 func (s *service) CreateAuthSession(data model.NewAuthSessionData) error {
-	query := "INSERT INTO public.ob_auth_sessions(id, user_id, expiry) VALUES ($1, $2, $3)"
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
 
-	_, err := s.db.Exec(query, data.Id, data.UserId, data.Expiry)
+	// Delete previous sessions for user
+	query := "DELETE FROM public.ob_auth_sessions WHERE user_id = $1"
+	_, err = tx.Exec(query, data.UserId)
+	if err != nil {
+		return err
+	}
 
-	return err
+	// Insert new session
+	query = "INSERT INTO public.ob_auth_sessions(id, user_id, expiry) VALUES ($1, $2, $3)"
+	_, err = tx.Exec(query, data.Id, data.UserId, data.Expiry)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (s *service) GetAuthSession(sessionId string) (model.AuthSessionEntity, error) {
@@ -219,6 +236,14 @@ func (s *service) GetAuthSession(sessionId string) (model.AuthSessionEntity, err
 	)
 
 	return res, err
+}
+
+func (s *service) DeleteAuthSession(sessionId string) error {
+	query := "DELETE FROM public.ob_auth_sessions WHERE id = $1"
+
+	_, err := s.db.Exec(query, sessionId)
+
+	return err
 }
 
 func (s *service) CreateApplication(data model.NewApplicationData) (int, error) {

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -60,6 +61,12 @@ func (s *Server) AppAuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 
 		if authSecret != session.Id {
+			return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+		}
+
+		nowMillis := time.Now().UnixMilli()
+		if nowMillis >= session.Expiry {
+			s.db.DeleteAuthSession(session.Id)
 			return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
 		}
 
