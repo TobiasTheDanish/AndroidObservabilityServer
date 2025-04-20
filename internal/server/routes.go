@@ -22,13 +22,13 @@ func (s *Server) RegisterRoutes() http.Handler {
 	e.GET("/health", s.healthHandler)
 
 	// AUTH endpoints
-	e.POST("/auth/teams", s.createTeamHandler)
-	e.POST("/auth/teams/:id/users", s.createTeamUserLinkHandler)
-	e.POST("/auth/users", s.createUserHandler)
+	e.POST("/auth/register", s.createUserHandler)
 	e.POST("/auth/sign-in", s.signInHandler)
 
 	// APP v1 endpoints
 	appV1 := e.Group("/app/v1", s.AppAuthMiddleware)
+	appV1.POST("/teams", s.createTeamHandler)
+	appV1.POST("/teams/:id/users", s.createTeamUserLinkHandler)
 	appV1.POST("/apps", s.createAppHandler)
 	appV1.POST("/apps/:id/keys", s.createKeyHandler)
 
