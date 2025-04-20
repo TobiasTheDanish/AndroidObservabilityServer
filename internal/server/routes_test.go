@@ -87,7 +87,7 @@ func TestTeamUserAuth(t *testing.T) {
 	e := echo.New()
 	e.Validator = NewValidator()
 
-	teamData := model.TeamDTO{
+	teamData := model.CreateTeamDTO{
 		Name: "Test Team",
 	}
 	body, err := json.Marshal(teamData)

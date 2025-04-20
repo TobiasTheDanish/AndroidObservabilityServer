@@ -21,7 +21,17 @@ type NewTeamData struct {
 	Name string
 }
 
-type TeamDTO struct {
+type TeamEntity struct {
+	Id   int
+	Name string
+}
+
+type GetTeamDTO struct {
+	Id   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+type CreateTeamDTO struct {
 	Name string `json:"name" validate:"required"`
 }
 

@@ -23,6 +23,7 @@ import (
 // Service represents a service that interacts with a database.
 type Service interface {
 	CreateTeam(data model.NewTeamData) (int, error)
+	GetTeamsForUser(userId int) ([]model.TeamEntity, error)
 
 	CreateUser(data model.NewUserData) (int, error)
 	GetUserByName(username string) (model.UserEntity, error)
@@ -152,6 +153,28 @@ func (s *service) CreateTeam(data model.NewTeamData) (int, error) {
 	err := s.db.QueryRow(query, data.Name).Scan(&id)
 
 	return id, err
+}
+
+func (s *service) GetTeamsForUser(userId int) ([]model.TeamEntity, error) {
+	query := "SELECT t.id, t.name FROM public.ob_teams AS t INNER JOIN public.ob_team_users AS tu ON tu.team_id = t.id WHERE tu.user_id = $1"
+
+	rows, err := s.db.Query(query, userId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	teams := make([]model.TeamEntity, 0)
+	for rows.Next() {
+		var team model.TeamEntity
+		err := rows.Scan(&team.Id, &team.Name)
+		if err != nil {
+			return nil, err
+		}
+		teams = append(teams, team)
+	}
+
+	return teams, nil
 }
 
 func (s *service) CreateUser(data model.NewUserData) (int, error) {

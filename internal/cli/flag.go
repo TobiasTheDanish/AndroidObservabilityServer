@@ -24,12 +24,13 @@ type Commands []Command
 func (c Commands) Usage() {
 	fmt.Println("Available subcommands:")
 	for _, cmd := range c {
-		fmt.Printf("\t%s\t%s\n", cmd.Name(), cmd.Description())
+		fmt.Printf("     %s\t%s\n", cmd.Name(), cmd.Description())
 	}
 }
 
 func ParseFlags(args []string) (bool, Command) {
 	cmds := Commands{
+		TeamCommand(),
 		AppCommand(),
 		ApiKeyCommand(),
 		RegisterCommand(),

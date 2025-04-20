@@ -27,6 +27,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	// APP v1 endpoints
 	appV1 := e.Group("/app/v1", s.AppAuthMiddleware)
+	appV1.GET("/teams", s.getTeamsHandler)
 	appV1.POST("/teams", s.createTeamHandler)
 	appV1.POST("/teams/:id/users", s.createTeamUserLinkHandler)
 	appV1.POST("/apps", s.createAppHandler)
@@ -56,8 +57,30 @@ func (s *Server) healthHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, s.db.Health())
 }
 
+func (s *Server) getTeamsHandler(c echo.Context) error {
+	session := c.Get("session").(model.AuthSessionEntity)
+
+	teams, err := s.db.GetTeamsForUser(session.UserId)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	teamDTOs := make([]model.GetTeamDTO, len(teams), len(teams))
+	for i, team := range teams {
+		teamDTOs[i] = model.GetTeamDTO{
+			Id:   team.Id,
+			Name: team.Name,
+		}
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"message": "Success",
+		"teams":   teamDTOs,
+	})
+}
+
 func (s *Server) createTeamHandler(c echo.Context) error {
-	var teamDTO model.TeamDTO
+	var teamDTO model.CreateTeamDTO
 	if err := c.Bind(&teamDTO); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
