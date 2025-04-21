@@ -17,6 +17,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	e.Validator = NewValidator()
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
+	e.Use(middleware.CORS())
 
 	e.GET("/", s.HelloWorldHandler)
 	e.GET("/health", s.healthHandler)
@@ -181,7 +182,6 @@ func (s *Server) signInHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Could not create session id")
 	}
 	sessionExpiry := auth.GetExpiryForSession()
-	// 4. Store session token in datbase
 
 	err = s.db.CreateAuthSession(model.NewAuthSessionData{
 		Id:     sessionId,
@@ -193,7 +193,6 @@ func (s *Server) signInHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Could not create session id")
 	}
 
-	// 5. Return 201 and session token
 	return c.JSON(http.StatusCreated, map[string]string{
 		"message":   "Sign in successful",
 		"sessionId": sessionId,
