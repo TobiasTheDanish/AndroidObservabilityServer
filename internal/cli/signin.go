@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 )
 
 type signInCommand struct {
@@ -34,13 +35,13 @@ func (c *signInCommand) Run() {
 	if c.name == "" {
 		fmt.Print("Enter username: ")
 		text, _ := reader.ReadString('\n')
-		c.name = text
+		c.name = strings.TrimSpace(text)
 	}
 
 	fmt.Print("Enter password: ")
 	password, _ := reader.ReadString('\n')
 
-	err := signIn(c.name, password)
+	err := signIn(c.name, strings.TrimSpace(password))
 	if err != nil {
 		fmt.Printf("Signing in failed! Error: %v\n", err)
 	}

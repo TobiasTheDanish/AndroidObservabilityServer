@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 )
 
 type registerCommand struct {
@@ -36,16 +37,17 @@ func (c *registerCommand) Run() {
 	if c.username == "" {
 		fmt.Print("Enter username: ")
 		text, _ := reader.ReadString('\n')
-		c.username = text
+		c.username = strings.TrimSpace(text)
 	}
 
 	fmt.Print("Enter password: ")
 	password, _ := reader.ReadString('\n')
+	password = strings.TrimSpace(password)
 
 	if c.teamname == "" {
 		fmt.Print("Enter your team name: ")
 		text, _ := reader.ReadString('\n')
-		c.teamname = text
+		c.teamname = strings.TrimSpace(text)
 	}
 
 	fmt.Println("Registering user")
