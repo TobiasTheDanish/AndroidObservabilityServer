@@ -30,6 +30,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	appV1 := e.Group("/app/v1", s.AppAuthMiddleware)
 	appV1.GET("/teams", s.getTeamsHandler)
 	appV1.POST("/teams", s.createTeamHandler)
+	appV1.GET("/teams/:id/apps", s.getAppsHandler)
 	appV1.POST("/teams/:id/users", s.createTeamUserLinkHandler)
 	appV1.POST("/apps", s.createAppHandler)
 	appV1.POST("/apps/:id/keys", s.createKeyHandler)
@@ -99,6 +100,38 @@ func (s *Server) createTeamHandler(c echo.Context) error {
 	return c.JSON(http.StatusCreated, map[string]any{
 		"message": "Team created",
 		"id":      id,
+	})
+}
+
+func (s *Server) getAppsHandler(c echo.Context) error {
+	teamId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Team id must be a number")
+	}
+
+	session := c.Get("session").(model.AuthSessionEntity)
+
+	if !s.db.ValidateTeamUserLink(teamId, session.UserId) {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Access denied")
+	}
+
+	apps, err := s.db.GetTeamApplications(teamId)
+	if err != nil {
+		log.Printf("Error getting apps for team id '%d': %v", teamId, err)
+		return echo.NewHTTPError(http.StatusBadRequest, "Could not get apps for this team")
+	}
+	appDTOs := make([]model.GetApplicationDTO, len(apps), len(apps))
+	for i, app := range apps {
+		appDTOs[i] = model.GetApplicationDTO{
+			Id:     app.Id,
+			Name:   app.Name,
+			TeamId: app.TeamId,
+		}
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"message": "Success",
+		"apps":    appDTOs,
 	})
 }
 
@@ -200,7 +233,7 @@ func (s *Server) signInHandler(c echo.Context) error {
 }
 
 func (s *Server) createAppHandler(c echo.Context) error {
-	var appDTO model.ApplicationDTO
+	var appDTO model.CreateApplicationDTO
 	if err := c.Bind(&appDTO); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}

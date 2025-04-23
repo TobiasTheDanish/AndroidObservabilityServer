@@ -38,6 +38,7 @@ type Service interface {
 
 	CreateApplication(data model.NewApplicationData) (int, error)
 	GetApplication(id int) (model.ApplicationEntity, error)
+	GetTeamApplications(teamId int) ([]model.ApplicationEntity, error)
 
 	CreateApiKey(data model.NewApiKeyData) error
 	// Validates that the given apiKey exists in the database and is active
@@ -289,6 +290,31 @@ func (s *service) GetApplication(id int) (model.ApplicationEntity, error) {
 	)
 
 	return res, err
+}
+
+func (s *service) GetTeamApplications(teamId int) ([]model.ApplicationEntity, error) {
+	query := "SELECT id, name, team_id FROM public.ob_applications WHERE team_id = $1"
+
+	rows, err := s.db.Query(query, teamId)
+	if err != nil {
+		return nil, err
+	}
+
+	apps := make([]model.ApplicationEntity, 0)
+	for rows.Next() {
+		var app model.ApplicationEntity
+		err = rows.Scan(
+			&app.Id,
+			&app.Name,
+			&app.TeamId,
+		)
+		if err != nil {
+			return nil, err
+		}
+		apps = append(apps, app)
+	}
+
+	return apps, nil
 }
 
 func (s *service) CreateApiKey(data model.NewApiKeyData) error {
