@@ -25,6 +25,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	// AUTH endpoints
 	e.POST("/auth/register", s.createUserHandler)
 	e.POST("/auth/sign-in", s.signInHandler)
+	e.POST("/auth/validate", s.validateSessionIdHandler, s.AppAuthMiddleware)
 
 	// APP v1 endpoints
 	appV1 := e.Group("/app/v1", s.AppAuthMiddleware)
@@ -230,6 +231,22 @@ func (s *Server) signInHandler(c echo.Context) error {
 	return c.JSON(http.StatusCreated, map[string]string{
 		"message":   "Sign in successful",
 		"sessionId": sessionId,
+	})
+}
+
+func (s *Server) validateSessionIdHandler(c echo.Context) error {
+	session := c.Get("session").(model.AuthSessionEntity)
+	newExpiry := auth.GetExpiryForSession()
+
+	updatedSessionId, err := s.db.ExtendAuthSession(session.Id, newExpiry)
+	if err != nil {
+		log.Printf("Error extending expiry for session id '%s': %v\n", session.Id, err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "Could not extend session expiry")
+	}
+
+	return c.JSON(http.StatusCreated, map[string]any{
+		"message":   "Valid session",
+		"sessionId": updatedSessionId,
 	})
 }
 

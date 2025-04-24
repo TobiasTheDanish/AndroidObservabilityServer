@@ -34,6 +34,7 @@ type Service interface {
 
 	CreateAuthSession(data model.NewAuthSessionData) error
 	GetAuthSession(sessionId string) (model.AuthSessionEntity, error)
+	ExtendAuthSession(sessionId string, newExpiry int64) (string, error)
 	DeleteAuthSession(sessionId string) error
 
 	CreateApplication(data model.NewApplicationData) (int, error)
@@ -259,6 +260,15 @@ func (s *service) GetAuthSession(sessionId string) (model.AuthSessionEntity, err
 		&res.UserId,
 		&res.Expiry,
 	)
+
+	return res, err
+}
+
+func (s *service) ExtendAuthSession(sessionId string, newExpiry int64) (string, error) {
+	query := "UPDATE public.ob_auth_sessions SET expiry=$1 WHERE id = $2 RETURNING id"
+
+	var res string
+	err := s.db.QueryRow(query, newExpiry, sessionId).Scan(&res)
 
 	return res, err
 }
