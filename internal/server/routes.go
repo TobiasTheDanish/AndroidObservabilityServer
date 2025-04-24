@@ -33,6 +33,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	appV1.GET("/teams/:id/apps", s.getAppsHandler)
 	appV1.POST("/teams/:id/users", s.createTeamUserLinkHandler)
 	appV1.POST("/apps", s.createAppHandler)
+	appV1.GET("/apps/:id", s.getAppDataHandler)
 	appV1.POST("/apps/:id/keys", s.createKeyHandler)
 
 	// Api v1 endpoints
@@ -259,6 +260,51 @@ func (s *Server) createAppHandler(c echo.Context) error {
 	return c.JSON(http.StatusCreated, map[string]any{
 		"message": "App created",
 		"id":      id,
+	})
+}
+
+func (s *Server) getAppDataHandler(c echo.Context) error {
+	appId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err)
+	}
+
+	app, err := s.db.GetApplication(appId)
+	session := c.Get("session").(model.AuthSessionEntity)
+	if !s.db.ValidateTeamUserLink(app.TeamId, session.UserId) {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Access denied to this app")
+	}
+
+	dataEntity, err := s.db.GetApplicationData(appId)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	dataDTO := model.ApplicationDataDTO{
+		Installations: make([]model.InstallationDTO, len(dataEntity.Installations), len(dataEntity.Installations)),
+		Sessions:      make([]model.SessionDTO, len(dataEntity.Sessions), len(dataEntity.Sessions)),
+	}
+
+	for i, installation := range dataEntity.Installations {
+		dataDTO.Installations[i] = model.InstallationDTO{
+			Id:         installation.Id,
+			SdkVersion: installation.SDKVersion,
+			Model:      installation.Model,
+			Brand:      installation.Brand,
+		}
+	}
+	for i, session := range dataEntity.Sessions {
+		dataDTO.Sessions[i] = model.SessionDTO{
+			Id:             session.Id,
+			InstallationId: session.InstallationId,
+			CreatedAt:      session.CreatedAt,
+			Crashed:        session.Crashed,
+		}
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"message": "Success",
+		"appData": dataDTO,
 	})
 }
 
