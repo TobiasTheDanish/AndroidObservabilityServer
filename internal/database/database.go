@@ -38,6 +38,7 @@ type Service interface {
 
 	CreateApplication(data model.NewApplicationData) (int, error)
 	GetApplication(id int) (model.ApplicationEntity, error)
+	GetApplicationData(id int) (model.ApplicationDataEntity, error)
 	GetTeamApplications(teamId int) ([]model.ApplicationEntity, error)
 
 	CreateApiKey(data model.NewApiKeyData) error
@@ -290,6 +291,49 @@ func (s *service) GetApplication(id int) (model.ApplicationEntity, error) {
 	)
 
 	return res, err
+}
+
+func (s *service) GetApplicationData(id int) (model.ApplicationDataEntity, error) {
+	installationQuery := "SELECT id, sdk_version, model, brand, app_id FROM public.ob_installations WHERE app_id = $1"
+
+	rows, err := s.db.Query(installationQuery, id)
+	if err != nil {
+		return model.ApplicationDataEntity{}, err
+	}
+
+	installations := make([]model.InstallationEntity, 0)
+	for rows.Next() {
+		var entity model.InstallationEntity
+		err := rows.Scan(&entity.Id, &entity.SDKVersion, &entity.Model, &entity.Brand, &entity.AppId)
+		if err != nil {
+			log.Printf("Error scanning installation entity: %v\n", err)
+			return model.ApplicationDataEntity{}, err
+		}
+		installations = append(installations, entity)
+	}
+
+	sessionQuery := "SELECT id, installation_id, created_at, crashed, app_id FROM public.ob_sessions WHERE app_id = $1"
+
+	rows, err = s.db.Query(sessionQuery, id)
+	if err != nil {
+		return model.ApplicationDataEntity{}, err
+	}
+
+	sessions := make([]model.SessionEntity, 0)
+	for rows.Next() {
+		var entity model.SessionEntity
+		err := rows.Scan(&entity.Id, &entity.InstallationId, &entity.CreatedAt, &entity.Crashed, &entity.AppId)
+		if err != nil {
+			log.Printf("Error scanning installation entity: %v\n", err)
+			return model.ApplicationDataEntity{}, err
+		}
+		sessions = append(sessions, entity)
+	}
+
+	return model.ApplicationDataEntity{
+		Installations: installations,
+		Sessions:      sessions,
+	}, nil
 }
 
 func (s *service) GetTeamApplications(teamId int) ([]model.ApplicationEntity, error) {

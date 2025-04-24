@@ -14,3 +14,11 @@ type SessionDTO struct {
 	CreatedAt      int64  `json:"createdAt" validate:"required"`
 	Crashed        bool   `json:"crashed"`
 }
+
+type SessionEntity struct {
+	Id             string
+	InstallationId string
+	CreatedAt      int64
+	Crashed        bool
+	AppId          int
+}

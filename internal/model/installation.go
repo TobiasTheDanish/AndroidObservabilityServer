@@ -14,3 +14,11 @@ type InstallationDTO struct {
 	Model      string `json:"model" validate:"required"`
 	Brand      string `json:"brand" validate:"required"`
 }
+
+type InstallationEntity struct {
+	Id         string
+	SDKVersion int
+	Model      string
+	Brand      string
+	AppId      int
+}

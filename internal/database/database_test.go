@@ -5,6 +5,7 @@ import (
 	"ObservabilityServer/internal/model"
 	"context"
 	"log"
+	"slices"
 	"testing"
 )
 
@@ -180,6 +181,64 @@ func TestCreateApp(t *testing.T) {
 	_, err = srv.GetApplication(appId)
 	if err != nil || appId == -1 {
 		t.Fatalf("Getting app failed. %v\n", err)
+	}
+}
+
+func TestGetApplicationData(t *testing.T) {
+	srv := New()
+
+	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
+	appId, _ := srv.CreateApplication(model.NewApplicationData{
+		Name:   "TestApp",
+		TeamId: teamId,
+	})
+
+	installationId := "TestInstallation321"
+	srv.CreateInstallation(model.NewInstallationData{
+		Id:         installationId,
+		AppId:      appId,
+		SdkVersion: 33,
+		Model:      "MT9556",
+		Brand:      "Newland",
+	})
+
+	sessionId1 := "TestSession321"
+	srv.CreateSession(model.NewSessionData{
+		Id:             sessionId1,
+		InstallationId: installationId,
+		AppId:          appId,
+		CreatedAt:      1,
+		Crashed:        false,
+	})
+	sessionId2 := "TestSession1234"
+	srv.CreateSession(model.NewSessionData{
+		Id:             sessionId2,
+		InstallationId: installationId,
+		AppId:          appId,
+		CreatedAt:      1,
+		Crashed:        true,
+	})
+
+	appData, err := srv.GetApplicationData(appId)
+	if err != nil {
+		t.Fatalf("Getting app data failed with err: %v\n", err)
+	}
+
+	if !slices.ContainsFunc(appData.Installations, func(i model.InstallationEntity) bool {
+		return i.Id == installationId
+	}) {
+		t.Error("The expected installation id was not returned!")
+	}
+
+	if !slices.ContainsFunc(appData.Sessions, func(s model.SessionEntity) bool {
+		return s.Id == sessionId1 && !s.Crashed
+	}) {
+		t.Errorf("The session id '%s' was not returned!", sessionId1)
+	}
+	if !slices.ContainsFunc(appData.Sessions, func(s model.SessionEntity) bool {
+		return s.Id == sessionId2 && s.Crashed
+	}) {
+		t.Errorf("The session id '%s' was not returned!", sessionId2)
 	}
 }
 
