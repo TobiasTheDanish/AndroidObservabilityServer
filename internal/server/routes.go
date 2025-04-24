@@ -416,6 +416,7 @@ func (s *Server) createCollectionHandler(c echo.Context) error {
 			err := s.db.CreateTrace(model.NewTraceData{
 				TraceId:      t.TraceId,
 				SessionId:    t.SessionId,
+				GroupId:      t.GroupId,
 				ParentId:     t.ParentId,
 				AppId:        appId.(int),
 				Name:         t.Name,
