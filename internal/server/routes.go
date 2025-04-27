@@ -45,6 +45,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	apiV1.POST("/sessions/:id/crash", s.sessionCrashHandler)
 	apiV1.POST("/events", s.createEventHandler)
 	apiV1.POST("/traces", s.createTraceHandler)
+	apiV1.POST("/resources/memory", s.createMemoryUsageHandler)
 
 	return e
 }
@@ -618,5 +619,39 @@ func (s *Server) createTraceHandler(c echo.Context) error {
 
 	return c.JSON(http.StatusCreated, map[string]string{
 		"message": "Trace created",
+	})
+}
+
+func (s *Server) createMemoryUsageHandler(c echo.Context) error {
+	appId := c.Get("appId")
+	if appId == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Missing app id")
+	}
+
+	var data model.NewMemoryUsageDTO
+	if err := c.Bind(data); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	if err := c.Validate(data); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	err := s.db.CreateMemoryUsage(model.NewMemoryUsageData{
+		Id:                 data.Id,
+		InstallationId:     data.InstallationId,
+		SessionId:          data.SessionId,
+		AppId:              appId.(int),
+		FreeMemory:         data.FreeMemory,
+		UsedMemory:         data.UsedMemory,
+		MaxMemory:          data.MaxMemory,
+		TotalMemory:        data.TotalMemory,
+		AvailableHeapSpace: data.AvailableHeapSpace,
+	})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Memory usage could not be created: %v", err))
+	}
+
+	return c.JSON(http.StatusCreated, map[string]string{
+		"message": "Memory usage created",
 	})
 }
