@@ -508,9 +508,9 @@ func (s *service) CreateTrace(data model.NewTraceData) error {
 }
 
 func (s *service) CreateMemoryUsage(data model.NewMemoryUsageData) error {
-	query := "INSERT INTO public.ob_memory_usage (id, session_id, installation_id, free_memory, used_memory, max_memory, total_memory, available_heap_space) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+	query := "INSERT INTO public.ob_memory_usage (id, session_id, installation_id, app_id, free_memory, used_memory, max_memory, total_memory, available_heap_space) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
 
-	_, err := s.db.Exec(query, data.Id, data.SessionId, data.InstallationId, data.FreeMemory, data.UsedMemory, data.MaxMemory, data.TotalMemory, data.AvailableHeapSpace)
+	_, err := s.db.Exec(query, data.Id, data.SessionId, data.InstallationId, data.AppId, data.FreeMemory, data.UsedMemory, data.MaxMemory, data.TotalMemory, data.AvailableHeapSpace)
 	if err != nil {
 		return err
 	}
@@ -519,13 +519,14 @@ func (s *service) CreateMemoryUsage(data model.NewMemoryUsageData) error {
 }
 
 func (s *service) GetMemoryUsageById(id string) (model.MemoryUsageEntity, error) {
-	query := "SELECT id, session_id, installation_id, free_memory, used_memory, max_memory, total_memory, available_heap_space FROM public.ob_memory_usage WHERE id = $1"
+	query := "SELECT id, session_id, installation_id, app_id, free_memory, used_memory, max_memory, total_memory, available_heap_space FROM public.ob_memory_usage WHERE id = $1"
 
 	var ent model.MemoryUsageEntity
 	err := s.db.QueryRow(query, id).Scan(
 		&ent.Id,
 		&ent.SessionId,
 		&ent.InstallationId,
+		&ent.AppId,
 		&ent.FreeMemory,
 		&ent.UsedMemory,
 		&ent.MaxMemory,
@@ -537,7 +538,7 @@ func (s *service) GetMemoryUsageById(id string) (model.MemoryUsageEntity, error)
 }
 
 func (s *service) GetMemoryUsageBySessionId(id string) ([]model.MemoryUsageEntity, error) {
-	query := "SELECT id, session_id, installation_id, free_memory, used_memory, max_memory, total_memory, available_heap_space FROM public.ob_memory_usage WHERE session_id = $1"
+	query := "SELECT id, session_id, installation_id, app_id, free_memory, used_memory, max_memory, total_memory, available_heap_space FROM public.ob_memory_usage WHERE session_id = $1"
 
 	rows, err := s.db.Query(query, id)
 	if err != nil {
@@ -551,6 +552,7 @@ func (s *service) GetMemoryUsageBySessionId(id string) ([]model.MemoryUsageEntit
 			&ent.Id,
 			&ent.SessionId,
 			&ent.InstallationId,
+			&ent.AppId,
 			&ent.FreeMemory,
 			&ent.UsedMemory,
 			&ent.MaxMemory,
@@ -568,7 +570,7 @@ func (s *service) GetMemoryUsageBySessionId(id string) ([]model.MemoryUsageEntit
 }
 
 func (s *service) GetMemoryUsageByInstallationId(id string) ([]model.MemoryUsageEntity, error) {
-	query := "SELECT id, session_id, installation_id, free_memory, used_memory, max_memory, total_memory, available_heap_space FROM public.ob_memory_usage WHERE installation_id = $1"
+	query := "SELECT id, session_id, installation_id, app_id, free_memory, used_memory, max_memory, total_memory, available_heap_space FROM public.ob_memory_usage WHERE installation_id = $1"
 
 	rows, err := s.db.Query(query, id)
 	if err != nil {
@@ -582,6 +584,7 @@ func (s *service) GetMemoryUsageByInstallationId(id string) ([]model.MemoryUsage
 			&ent.Id,
 			&ent.SessionId,
 			&ent.InstallationId,
+			&ent.AppId,
 			&ent.FreeMemory,
 			&ent.UsedMemory,
 			&ent.MaxMemory,

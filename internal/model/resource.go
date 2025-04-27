@@ -4,6 +4,7 @@ type NewMemoryUsageData struct {
 	Id                 string
 	SessionId          string
 	InstallationId     string
+	AppId              int
 	FreeMemory         int64
 	UsedMemory         int64
 	MaxMemory          int64
@@ -15,6 +16,7 @@ type MemoryUsageEntity struct {
 	Id                 string
 	SessionId          string
 	InstallationId     string
+	AppId              int
 	FreeMemory         int64
 	UsedMemory         int64
 	MaxMemory          int64

@@ -457,6 +457,7 @@ func TestCreateMemoryUsage(t *testing.T) {
 		Id:                 "TEST MEMORY USAGE",
 		SessionId:          sessionData.Id,
 		InstallationId:     installationId,
+		AppId:              appId,
 		FreeMemory:         10,
 		UsedMemory:         4,
 		TotalMemory:        14,
@@ -477,6 +478,7 @@ func TestCreateMemoryUsage(t *testing.T) {
 	if !(memoryUsageData.Id == entity.Id &&
 		memoryUsageData.SessionId == entity.SessionId &&
 		memoryUsageData.InstallationId == entity.InstallationId &&
+		memoryUsageData.AppId == entity.AppId &&
 		memoryUsageData.FreeMemory == entity.FreeMemory &&
 		memoryUsageData.UsedMemory == entity.UsedMemory &&
 		memoryUsageData.MaxMemory == entity.MaxMemory &&
