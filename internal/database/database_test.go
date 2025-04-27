@@ -433,6 +433,61 @@ func TestCreateTrace(t *testing.T) {
 	}
 }
 
+func TestCreateMemoryUsage(t *testing.T) {
+	srv := New()
+
+	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
+	appId, _ := srv.CreateApplication(model.NewApplicationData{
+		Name:   "TestApp",
+		TeamId: teamId,
+	})
+
+	installationId := "InstallationIdForTestSession123"
+	sessionData := model.NewSessionData{
+		Id:             "TestSession12345",
+		InstallationId: installationId,
+		AppId:          appId,
+		CreatedAt:      1,
+		Crashed:        false,
+	}
+
+	_ = srv.CreateSession(sessionData)
+
+	memoryUsageData := model.NewMemoryUsageData{
+		Id:                 "TEST MEMORY USAGE",
+		SessionId:          sessionData.Id,
+		InstallationId:     installationId,
+		AppId:              appId,
+		FreeMemory:         10,
+		UsedMemory:         4,
+		TotalMemory:        14,
+		MaxMemory:          24,
+		AvailableHeapSpace: 20,
+	}
+
+	err := srv.CreateMemoryUsage(memoryUsageData)
+	if err != nil {
+		t.Fatalf("CreateMemoryUsage failed: %v\n", err)
+	}
+
+	entity, err := srv.GetMemoryUsageById(memoryUsageData.Id)
+	if err != nil {
+		t.Fatalf("GetMemoryUsageById failed: %v\n", err)
+	}
+
+	if !(memoryUsageData.Id == entity.Id &&
+		memoryUsageData.SessionId == entity.SessionId &&
+		memoryUsageData.InstallationId == entity.InstallationId &&
+		memoryUsageData.AppId == entity.AppId &&
+		memoryUsageData.FreeMemory == entity.FreeMemory &&
+		memoryUsageData.UsedMemory == entity.UsedMemory &&
+		memoryUsageData.MaxMemory == entity.MaxMemory &&
+		memoryUsageData.TotalMemory == entity.TotalMemory &&
+		memoryUsageData.AvailableHeapSpace == entity.AvailableHeapSpace) {
+		t.Fatalf("Data passed to CreateMemoryUsage didnt match data returned for GetMemoryUsageById. \n\tExpected: %v\n\tActual: %v", memoryUsageData, entity)
+	}
+}
+
 func TestHealth(t *testing.T) {
 	srv := New()
 

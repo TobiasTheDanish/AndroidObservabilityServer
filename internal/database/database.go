@@ -54,6 +54,11 @@ type Service interface {
 	CreateEvent(data model.NewEventData) error
 	CreateTrace(data model.NewTraceData) error
 
+	CreateMemoryUsage(data model.NewMemoryUsageData) error
+	GetMemoryUsageById(id string) (model.MemoryUsageEntity, error)
+	GetMemoryUsageBySessionId(id string) ([]model.MemoryUsageEntity, error)
+	GetMemoryUsageByInstallationId(id string) ([]model.MemoryUsageEntity, error)
+
 	// Health returns a map of health status information.
 	// The keys and values in the map are service-specific.
 	Health() map[string]string
@@ -500,6 +505,100 @@ func (s *service) CreateTrace(data model.NewTraceData) error {
 	}
 
 	return nil
+}
+
+func (s *service) CreateMemoryUsage(data model.NewMemoryUsageData) error {
+	query := "INSERT INTO public.ob_memory_usage (id, session_id, installation_id, app_id, free_memory, used_memory, max_memory, total_memory, available_heap_space) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+
+	_, err := s.db.Exec(query, data.Id, data.SessionId, data.InstallationId, data.AppId, data.FreeMemory, data.UsedMemory, data.MaxMemory, data.TotalMemory, data.AvailableHeapSpace)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *service) GetMemoryUsageById(id string) (model.MemoryUsageEntity, error) {
+	query := "SELECT id, session_id, installation_id, app_id, free_memory, used_memory, max_memory, total_memory, available_heap_space FROM public.ob_memory_usage WHERE id = $1"
+
+	var ent model.MemoryUsageEntity
+	err := s.db.QueryRow(query, id).Scan(
+		&ent.Id,
+		&ent.SessionId,
+		&ent.InstallationId,
+		&ent.AppId,
+		&ent.FreeMemory,
+		&ent.UsedMemory,
+		&ent.MaxMemory,
+		&ent.TotalMemory,
+		&ent.AvailableHeapSpace,
+	)
+
+	return ent, err
+}
+
+func (s *service) GetMemoryUsageBySessionId(id string) ([]model.MemoryUsageEntity, error) {
+	query := "SELECT id, session_id, installation_id, app_id, free_memory, used_memory, max_memory, total_memory, available_heap_space FROM public.ob_memory_usage WHERE session_id = $1"
+
+	rows, err := s.db.Query(query, id)
+	if err != nil {
+		return nil, err
+	}
+
+	entities := make([]model.MemoryUsageEntity, 0)
+	for rows.Next() {
+		var ent model.MemoryUsageEntity
+		err = rows.Scan(
+			&ent.Id,
+			&ent.SessionId,
+			&ent.InstallationId,
+			&ent.AppId,
+			&ent.FreeMemory,
+			&ent.UsedMemory,
+			&ent.MaxMemory,
+			&ent.TotalMemory,
+			&ent.AvailableHeapSpace,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		entities = append(entities, ent)
+	}
+
+	return entities, err
+}
+
+func (s *service) GetMemoryUsageByInstallationId(id string) ([]model.MemoryUsageEntity, error) {
+	query := "SELECT id, session_id, installation_id, app_id, free_memory, used_memory, max_memory, total_memory, available_heap_space FROM public.ob_memory_usage WHERE installation_id = $1"
+
+	rows, err := s.db.Query(query, id)
+	if err != nil {
+		return nil, err
+	}
+
+	entities := make([]model.MemoryUsageEntity, 0)
+	for rows.Next() {
+		var ent model.MemoryUsageEntity
+		err = rows.Scan(
+			&ent.Id,
+			&ent.SessionId,
+			&ent.InstallationId,
+			&ent.AppId,
+			&ent.FreeMemory,
+			&ent.UsedMemory,
+			&ent.MaxMemory,
+			&ent.TotalMemory,
+			&ent.AvailableHeapSpace,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		entities = append(entities, ent)
+	}
+
+	return entities, err
 }
 
 func (s *service) ValidateApiKey(apiKey string) bool {
