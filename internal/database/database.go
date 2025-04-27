@@ -56,6 +56,8 @@ type Service interface {
 
 	CreateMemoryUsage(data model.NewMemoryUsageData) error
 	GetMemoryUsageById(id string) (model.MemoryUsageEntity, error)
+	GetMemoryUsageBySessionId(id string) ([]model.MemoryUsageEntity, error)
+	GetMemoryUsageByInstallationId(id string) ([]model.MemoryUsageEntity, error)
 
 	// Health returns a map of health status information.
 	// The keys and values in the map are service-specific.
@@ -532,6 +534,68 @@ func (s *service) GetMemoryUsageById(id string) (model.MemoryUsageEntity, error)
 	)
 
 	return ent, err
+}
+
+func (s *service) GetMemoryUsageBySessionId(id string) ([]model.MemoryUsageEntity, error) {
+	query := "SELECT id, session_id, installation_id, free_memory, used_memory, max_memory, total_memory, available_heap_space FROM public.ob_memory_usage WHERE session_id = $1"
+
+	rows, err := s.db.Query(query, id)
+	if err != nil {
+		return nil, err
+	}
+
+	entities := make([]model.MemoryUsageEntity, 0)
+	for rows.Next() {
+		var ent model.MemoryUsageEntity
+		err = rows.Scan(
+			&ent.Id,
+			&ent.SessionId,
+			&ent.InstallationId,
+			&ent.FreeMemory,
+			&ent.UsedMemory,
+			&ent.MaxMemory,
+			&ent.TotalMemory,
+			&ent.AvailableHeapSpace,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		entities = append(entities, ent)
+	}
+
+	return entities, err
+}
+
+func (s *service) GetMemoryUsageByInstallationId(id string) ([]model.MemoryUsageEntity, error) {
+	query := "SELECT id, session_id, installation_id, free_memory, used_memory, max_memory, total_memory, available_heap_space FROM public.ob_memory_usage WHERE installation_id = $1"
+
+	rows, err := s.db.Query(query, id)
+	if err != nil {
+		return nil, err
+	}
+
+	entities := make([]model.MemoryUsageEntity, 0)
+	for rows.Next() {
+		var ent model.MemoryUsageEntity
+		err = rows.Scan(
+			&ent.Id,
+			&ent.SessionId,
+			&ent.InstallationId,
+			&ent.FreeMemory,
+			&ent.UsedMemory,
+			&ent.MaxMemory,
+			&ent.TotalMemory,
+			&ent.AvailableHeapSpace,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		entities = append(entities, ent)
+	}
+
+	return entities, err
 }
 
 func (s *service) ValidateApiKey(apiKey string) bool {
