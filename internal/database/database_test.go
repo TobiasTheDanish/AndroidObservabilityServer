@@ -433,6 +433,43 @@ func TestCreateTrace(t *testing.T) {
 	}
 }
 
+func TestCreateMemoryUsage(t *testing.T) {
+	srv := New()
+
+	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
+	appId, _ := srv.CreateApplication(model.NewApplicationData{
+		Name:   "TestApp",
+		TeamId: teamId,
+	})
+
+	installationId := "InstallationIdForTestSession123"
+	sessionData := model.NewSessionData{
+		Id:             "TestSession12345",
+		InstallationId: installationId,
+		AppId:          appId,
+		CreatedAt:      1,
+		Crashed:        false,
+	}
+
+	_ = srv.CreateSession(sessionData)
+
+	memoryUsageData := model.NewMemoryUsageData{
+		Id:                 "TEST MEMORY USAGE",
+		SessionId:          sessionData.Id,
+		InstallationId:     installationId,
+		FreeMemory:         10,
+		UsedMemory:         4,
+		TotalMemory:        14,
+		MaxMemory:          24,
+		AvailableHeapSpace: 20,
+	}
+
+	err := srv.CreateMemoryUsage(memoryUsageData)
+	if err != nil {
+		t.Fatalf("CreateMemoryUsage failed: %v\n", err)
+	}
+}
+
 func TestHealth(t *testing.T) {
 	srv := New()
 

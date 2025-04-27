@@ -53,6 +53,7 @@ type Service interface {
 	MarkSessionCrashed(id string, ownerId int) error
 	CreateEvent(data model.NewEventData) error
 	CreateTrace(data model.NewTraceData) error
+	CreateMemoryUsage(data model.NewMemoryUsageData) error
 
 	// Health returns a map of health status information.
 	// The keys and values in the map are service-specific.
@@ -497,6 +498,17 @@ func (s *service) CreateTrace(data model.NewTraceData) error {
 
 	if rowsAffected != 1 {
 		return fmt.Errorf("Expected 1 trace to be inserted but was %d", rowsAffected)
+	}
+
+	return nil
+}
+
+func (s *service) CreateMemoryUsage(data model.NewMemoryUsageData) error {
+	query := "INSERT INTO public.ob_memory_usage (id, session_id, installation_id, free_memory, used_memory, max_memory, total_memory, available_heap_space) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+
+	_, err := s.db.Exec(query, data.Id, data.SessionId, data.InstallationId, data.FreeMemory, data.UsedMemory, data.MaxMemory, data.TotalMemory, data.AvailableHeapSpace)
+	if err != nil {
+		return err
 	}
 
 	return nil
