@@ -468,6 +468,22 @@ func TestCreateMemoryUsage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateMemoryUsage failed: %v\n", err)
 	}
+
+	entity, err := srv.GetMemoryUsageById(memoryUsageData.Id)
+	if err != nil {
+		t.Fatalf("GetMemoryUsageById failed: %v\n", err)
+	}
+
+	if !(memoryUsageData.Id == entity.Id &&
+		memoryUsageData.SessionId == entity.SessionId &&
+		memoryUsageData.InstallationId == entity.InstallationId &&
+		memoryUsageData.FreeMemory == entity.FreeMemory &&
+		memoryUsageData.UsedMemory == entity.UsedMemory &&
+		memoryUsageData.MaxMemory == entity.MaxMemory &&
+		memoryUsageData.TotalMemory == entity.TotalMemory &&
+		memoryUsageData.AvailableHeapSpace == entity.AvailableHeapSpace) {
+		t.Fatalf("Data passed to CreateMemoryUsage didnt match data returned for GetMemoryUsageById. \n\tExpected: %v\n\tActual: %v", memoryUsageData, entity)
+	}
 }
 
 func TestHealth(t *testing.T) {

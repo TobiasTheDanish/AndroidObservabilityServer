@@ -53,7 +53,9 @@ type Service interface {
 	MarkSessionCrashed(id string, ownerId int) error
 	CreateEvent(data model.NewEventData) error
 	CreateTrace(data model.NewTraceData) error
+
 	CreateMemoryUsage(data model.NewMemoryUsageData) error
+	GetMemoryUsageById(id string) (model.MemoryUsageEntity, error)
 
 	// Health returns a map of health status information.
 	// The keys and values in the map are service-specific.
@@ -512,6 +514,24 @@ func (s *service) CreateMemoryUsage(data model.NewMemoryUsageData) error {
 	}
 
 	return nil
+}
+
+func (s *service) GetMemoryUsageById(id string) (model.MemoryUsageEntity, error) {
+	query := "SELECT id, session_id, installation_id, free_memory, used_memory, max_memory, total_memory, available_heap_space FROM public.ob_memory_usage WHERE id = $1"
+
+	var ent model.MemoryUsageEntity
+	err := s.db.QueryRow(query, id).Scan(
+		&ent.Id,
+		&ent.SessionId,
+		&ent.InstallationId,
+		&ent.FreeMemory,
+		&ent.UsedMemory,
+		&ent.MaxMemory,
+		&ent.TotalMemory,
+		&ent.AvailableHeapSpace,
+	)
+
+	return ent, err
 }
 
 func (s *service) ValidateApiKey(apiKey string) bool {
