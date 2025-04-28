@@ -5,6 +5,7 @@ services:
     restart: unless-stopped
     environment:
       OBSERVE_API_PORT: ${OBSERVE_API_PORT}
+      OBSERVE_API_EXTERNAL_PORT: ${OBSERVE_API_EXTERNAL_PORT}
       OBSERVE_DB_DATABASE: ${OBSERVE_DB_DATABASE}
       OBSERVE_DB_PASSWORD: ${OBSERVE_DB_PASSWORD}
       OBSERVE_DB_USERNAME: ${OBSERVE_DB_USERNAME}
@@ -13,7 +14,7 @@ services:
       OBSERVE_DB_SCHEMA: ${OBSERVE_DB_SCHEMA}
       OBSERVE_HASH_SECRET: ${OBSERVE_HASH_SECRET}
     ports:
-      - "9000:$OBSERVE_API_PORT"
+      - "$OBSERVE_API_PORT:$OBSERVE_API_PORT"
 
   migrate:
     image: migrate/migrate
