@@ -1,28 +1,4 @@
 services:
-  # db:
-  #   image: postgres:latest
-  #   container_name: observe-db
-  #   restart: unless-stopped
-  #   environment:
-  #     POSTGRES_DB: ${OBSERVE_DB_DATABASE}
-  #     POSTGRES_USER: ${OBSERVE_DB_USERNAME}
-  #     POSTGRES_PASSWORD: ${OBSERVE_DB_PASSWORD}
-  #   ports:
-  #     - "${OBSERVE_DB_PORT}:5432"
-  #   volumes:
-  #     - db-data:/var/lib/postgresql/data
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
-  #     interval: 5s
-  #     timeout: 5s
-  #     retries: 5
-
-  adminer:
-    image: adminer
-    restart: unless-stopped
-    ports:
-      - "8081:8080"
-
   observe_api:
     build: .
     container_name: observe-api
@@ -40,7 +16,13 @@ services:
       OBSERVE_DB_SCHEMA: ${OBSERVE_DB_SCHEMA}
       OBSERVE_HASH_SECRET: ${OBSERVE_HASH_SECRET}
     ports:
-      - "9000:8080"
+      - "9000:$OBSERVE_API_PORT"
+    healthcheck:
+      test: curl --fail http://localhost:9000/health || exit 1
+      interval: 40s
+      timeout: 30s
+      retries: 3
+      start_period: 60s
 
   migrate:
     image: migrate/migrate
@@ -63,5 +45,3 @@ services:
         "postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB?sslmode=disable",
         "up",
       ]
-# volumes:
-#   db-data:
