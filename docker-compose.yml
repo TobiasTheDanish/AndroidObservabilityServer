@@ -14,12 +14,6 @@ services:
       OBSERVE_HASH_SECRET: ${OBSERVE_HASH_SECRET}
     ports:
       - "9000:$OBSERVE_API_PORT"
-    healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:9000/health"]
-      interval: 40s
-      timeout: 30s
-      retries: 3
-      start_period: 20s
 
   migrate:
     image: migrate/migrate
@@ -33,7 +27,7 @@ services:
       - ./migrations:/migrations
     depends_on:
       observe_api:
-        condition: service_healthy
+        condition: service_started
     command:
       [
         "-path",
