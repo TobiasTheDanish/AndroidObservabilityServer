@@ -9,6 +9,7 @@ type NewMemoryUsageDTO struct {
 	MaxMemory          int64  `json:"maxMemory"`
 	TotalMemory        int64  `json:"totalMemory"`
 	AvailableHeapSpace int64  `json:"availableHeapSpace"`
+	CreatedAt          int64  `json:"createdAt" validate:"required"`
 }
 
 type NewMemoryUsageData struct {
@@ -21,6 +22,7 @@ type NewMemoryUsageData struct {
 	MaxMemory          int64
 	TotalMemory        int64
 	AvailableHeapSpace int64
+	CreatedAt          int64
 }
 
 type GetMemoryUsageDTO struct {
@@ -33,6 +35,7 @@ type GetMemoryUsageDTO struct {
 	MaxMemory          int64  `json:"maxMemory"`
 	TotalMemory        int64  `json:"totalMemory"`
 	AvailableHeapSpace int64  `json:"availableHeapSpace"`
+	CreatedAt          int64  `json:"createdAt"`
 }
 
 type MemoryUsageEntity struct {
@@ -45,4 +48,5 @@ type MemoryUsageEntity struct {
 	MaxMemory          int64
 	TotalMemory        int64
 	AvailableHeapSpace int64
+	CreatedAt          int64
 }

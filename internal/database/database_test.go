@@ -463,6 +463,7 @@ func TestCreateMemoryUsage(t *testing.T) {
 		TotalMemory:        14,
 		MaxMemory:          24,
 		AvailableHeapSpace: 20,
+		CreatedAt:          1234,
 	}
 
 	err := srv.CreateMemoryUsage(memoryUsageData)

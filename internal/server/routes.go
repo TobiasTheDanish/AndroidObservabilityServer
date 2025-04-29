@@ -36,6 +36,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 	appV1.POST("/apps", s.createAppHandler)
 	appV1.GET("/apps/:id", s.getAppDataHandler)
 	appV1.POST("/apps/:id/keys", s.createKeyHandler)
+	appV1.GET("/installations/:id/resources", s.getInstallationMemoryUsageHandler)
+	appV1.GET("/sessions/:id/resources", s.getSessionMemoryUsageHandler)
 
 	// Api v1 endpoints
 	apiV1 := e.Group("/api/v1", s.APIKeyMiddleware)
@@ -369,6 +371,82 @@ func (s *Server) createKeyHandler(c echo.Context) error {
 	})
 }
 
+func (s *Server) getInstallationMemoryUsageHandler(c echo.Context) error {
+	installationId := c.Param("id")
+	install, err := s.db.GetInstallation(installationId)
+	app, err := s.db.GetApplication(install.AppId)
+	session := c.Get("session").(model.AuthSessionEntity)
+	if !s.db.ValidateTeamUserLink(app.TeamId, session.UserId) {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Access denied to this app")
+	}
+
+	memoryEntities, err := s.db.GetMemoryUsageByInstallationId(install.Id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	memDTOS := make([]model.GetMemoryUsageDTO, len(memoryEntities), len(memoryEntities))
+	for i, ent := range memoryEntities {
+		memDTOS[i] = model.GetMemoryUsageDTO{
+			Id:                 ent.Id,
+			SessionId:          ent.SessionId,
+			InstallationId:     ent.InstallationId,
+			AppId:              ent.AppId,
+			FreeMemory:         ent.FreeMemory,
+			UsedMemory:         ent.UsedMemory,
+			MaxMemory:          ent.MaxMemory,
+			TotalMemory:        ent.TotalMemory,
+			AvailableHeapSpace: ent.AvailableHeapSpace,
+			CreatedAt:          ent.CreatedAt,
+		}
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"message": "Success",
+		"resources": map[string]any{
+			"memoryUsage": memDTOS,
+		},
+	})
+}
+
+func (s *Server) getSessionMemoryUsageHandler(c echo.Context) error {
+	sessionId := c.Param("id")
+	session, err := s.db.GetSession(sessionId)
+	app, err := s.db.GetApplication(session.AppId)
+	authSession := c.Get("session").(model.AuthSessionEntity)
+	if !s.db.ValidateTeamUserLink(app.TeamId, authSession.UserId) {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Access denied to this app")
+	}
+
+	memoryEntities, err := s.db.GetMemoryUsageBySessionId(session.Id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	memDTOS := make([]model.GetMemoryUsageDTO, len(memoryEntities), len(memoryEntities))
+	for i, ent := range memoryEntities {
+		memDTOS[i] = model.GetMemoryUsageDTO{
+			Id:                 ent.Id,
+			SessionId:          ent.SessionId,
+			InstallationId:     ent.InstallationId,
+			AppId:              ent.AppId,
+			FreeMemory:         ent.FreeMemory,
+			UsedMemory:         ent.UsedMemory,
+			MaxMemory:          ent.MaxMemory,
+			TotalMemory:        ent.TotalMemory,
+			AvailableHeapSpace: ent.AvailableHeapSpace,
+			CreatedAt:          ent.CreatedAt,
+		}
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"message": "Success",
+		"resources": map[string]any{
+			"memoryUsage": memDTOS,
+		},
+	})
+}
+
 func (s *Server) createInstallationHandler(c echo.Context) error {
 	appId := c.Get("appId")
 	if appId == nil {
@@ -646,6 +724,7 @@ func (s *Server) createMemoryUsageHandler(c echo.Context) error {
 		MaxMemory:          data.MaxMemory,
 		TotalMemory:        data.TotalMemory,
 		AvailableHeapSpace: data.AvailableHeapSpace,
+		CreatedAt:          data.CreatedAt,
 	})
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Memory usage could not be created: %v", err))
