@@ -29,15 +29,21 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	// APP v1 endpoints
 	appV1 := e.Group("/app/v1", s.AppAuthMiddleware)
+
 	appV1.GET("/teams", s.getTeamsHandler)
 	appV1.POST("/teams", s.createTeamHandler)
 	appV1.GET("/teams/:id/apps", s.getAppsHandler)
 	appV1.POST("/teams/:id/users", s.createTeamUserLinkHandler)
+
 	appV1.POST("/apps", s.createAppHandler)
 	appV1.GET("/apps/:id", s.getAppDataHandler)
 	appV1.POST("/apps/:id/keys", s.createKeyHandler)
+
 	appV1.GET("/installations/:id/resources", s.getInstallationMemoryUsageHandler)
+	appV1.GET("/installations/:id", s.getInstallationInfoHandler)
+
 	appV1.GET("/sessions/:id/resources", s.getSessionMemoryUsageHandler)
+	appV1.GET("/sessions/:id", s.getSessionInfoHandler)
 
 	// Api v1 endpoints
 	apiV1 := e.Group("/api/v1", s.APIKeyMiddleware)
@@ -374,10 +380,18 @@ func (s *Server) createKeyHandler(c echo.Context) error {
 func (s *Server) getInstallationMemoryUsageHandler(c echo.Context) error {
 	installationId := c.Param("id")
 	install, err := s.db.GetInstallation(installationId)
+	if err != nil {
+		log.Printf("Getting installation failed: %v\n", err)
+		return echo.NewHTTPError(http.StatusBadRequest, "Unknown installation id")
+	}
 	app, err := s.db.GetApplication(install.AppId)
+	if err != nil {
+		log.Printf("Getting app failed: %v\n", err)
+		return echo.NewHTTPError(http.StatusBadRequest, "Unknown installation id")
+	}
 	session := c.Get("session").(model.AuthSessionEntity)
 	if !s.db.ValidateTeamUserLink(app.TeamId, session.UserId) {
-		return echo.NewHTTPError(http.StatusUnauthorized, "Access denied to this app")
+		return echo.NewHTTPError(http.StatusUnauthorized, "Access denied")
 	}
 
 	memoryEntities, err := s.db.GetMemoryUsageByInstallationId(install.Id)
@@ -409,10 +423,46 @@ func (s *Server) getInstallationMemoryUsageHandler(c echo.Context) error {
 	})
 }
 
+func (s *Server) getInstallationInfoHandler(c echo.Context) error {
+	installationId := c.Param("id")
+	install, err := s.db.GetInstallation(installationId)
+	if err != nil {
+		log.Printf("Getting installation failed: %v\n", err)
+		return echo.NewHTTPError(http.StatusBadRequest, "Unknown installation id")
+	}
+	app, err := s.db.GetApplication(install.AppId)
+	if err != nil {
+		log.Printf("Getting app failed: %v\n", err)
+		return echo.NewHTTPError(http.StatusBadRequest, "Unknown installation id")
+	}
+	session := c.Get("session").(model.AuthSessionEntity)
+	if !s.db.ValidateTeamUserLink(app.TeamId, session.UserId) {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Access denied")
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"message": "Success",
+		"installation": model.InstallationDTO{
+			Id:         install.Id,
+			SdkVersion: install.SDKVersion,
+			Model:      install.Model,
+			Brand:      install.Brand,
+		},
+	})
+}
+
 func (s *Server) getSessionMemoryUsageHandler(c echo.Context) error {
 	sessionId := c.Param("id")
 	session, err := s.db.GetSession(sessionId)
+	if err != nil {
+		log.Printf("Getting session failed: %v\n", err)
+		return echo.NewHTTPError(http.StatusBadRequest, "Unknown session id")
+	}
 	app, err := s.db.GetApplication(session.AppId)
+	if err != nil {
+		log.Printf("Getting app failed: %v\n", err)
+		return echo.NewHTTPError(http.StatusBadRequest, "Unknown session id")
+	}
 	authSession := c.Get("session").(model.AuthSessionEntity)
 	if !s.db.ValidateTeamUserLink(app.TeamId, authSession.UserId) {
 		return echo.NewHTTPError(http.StatusUnauthorized, "Access denied to this app")
@@ -443,6 +493,34 @@ func (s *Server) getSessionMemoryUsageHandler(c echo.Context) error {
 		"message": "Success",
 		"resources": map[string]any{
 			"memoryUsage": memDTOS,
+		},
+	})
+}
+
+func (s *Server) getSessionInfoHandler(c echo.Context) error {
+	sessionId := c.Param("id")
+	session, err := s.db.GetSession(sessionId)
+	if err != nil {
+		log.Printf("Getting session failed: %v\n", err)
+		return echo.NewHTTPError(http.StatusBadRequest, "Unknown session id")
+	}
+	app, err := s.db.GetApplication(session.AppId)
+	if err != nil {
+		log.Printf("Getting app failed: %v\n", err)
+		return echo.NewHTTPError(http.StatusBadRequest, "Unknown session id")
+	}
+	authSession := c.Get("session").(model.AuthSessionEntity)
+	if !s.db.ValidateTeamUserLink(app.TeamId, authSession.UserId) {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Access denied")
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"message": "Success",
+		"installation": model.SessionDTO{
+			Id:             session.Id,
+			InstallationId: session.InstallationId,
+			CreatedAt:      session.CreatedAt,
+			Crashed:        session.Crashed,
 		},
 	})
 }
