@@ -516,7 +516,7 @@ func (s *Server) getSessionInfoHandler(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, map[string]any{
 		"message": "Success",
-		"installation": model.SessionDTO{
+		"session": model.SessionDTO{
 			Id:             session.Id,
 			InstallationId: session.InstallationId,
 			CreatedAt:      session.CreatedAt,
