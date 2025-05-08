@@ -306,6 +306,12 @@ func (s *Server) getAppDataHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 
+	appDTO := model.GetApplicationDTO{
+		Id:     app.Id,
+		Name:   app.Name,
+		TeamId: app.TeamId,
+	}
+
 	dataDTO := model.ApplicationDataDTO{
 		Installations: make([]model.InstallationDTO, len(dataEntity.Installations), len(dataEntity.Installations)),
 		Sessions:      make([]model.SessionDTO, len(dataEntity.Sessions), len(dataEntity.Sessions)),
@@ -330,6 +336,7 @@ func (s *Server) getAppDataHandler(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, map[string]any{
 		"message": "Success",
+		"app":     appDTO,
 		"appData": dataDTO,
 	})
 }
