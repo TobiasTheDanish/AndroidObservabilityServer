@@ -523,7 +523,7 @@ func TestCreateInstallationNonUUID(t *testing.T) {
 	reader := bytes.NewReader(body)
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/collection", reader)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/installations", reader)
 	resp := httptest.NewRecorder()
 	req.Header.Set("Content-type", "application/json")
 
@@ -550,5 +550,72 @@ func TestCreateInstallationNonUUID(t *testing.T) {
 	// Compare the decoded response with the expected value
 	if !reflect.DeepEqual(expected, actual) {
 		t.Fatalf("createInstallationHandler() wrong response body. expected = %v, actual = %v", expected, actual)
+	}
+}
+
+func TestCreateMemoryUsage(t *testing.T) {
+	err := db.CreateSession(model.NewSessionData{
+		Id:    "c40def38-6bf6-488e-905d-45ebacecf3e2",
+		AppId: appId,
+	})
+	if err != nil {
+		t.Fatalf("Could not create session: %v\n", err)
+	}
+
+	usages := make([]model.NewMemoryUsageDTO, 0, 0)
+	usages = append(usages, model.NewMemoryUsageDTO{
+		Id:                 "d581fbcc-6a0e-4fad-ae34-bdffe882629b",
+		SessionId:          "c40def38-6bf6-488e-905d-45ebacecf3e2",
+		InstallationId:     "dd72f2d8-c679-4e7c-bf6b-56f6ec78391b",
+		FreeMemory:         12,
+		UsedMemory:         12,
+		TotalMemory:        24,
+		MaxMemory:          36,
+		AvailableHeapSpace: 24,
+		CreatedAt:          12345678,
+	})
+	body, err := json.Marshal(usages)
+	if err != nil {
+		t.Fatalf("Could not marshal []NewMemoryUsageDTO: %v", err)
+	}
+	reader := bytes.NewReader(body)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/resources/memory", reader)
+	resp := httptest.NewRecorder()
+	req.Header.Set("Content-type", "application/json")
+
+	e.Validator = NewValidator()
+	c := e.NewContext(req, resp)
+	s := &Server{
+		db: db,
+	}
+
+	c.Set("appId", appId)
+
+	err = s.createMemoryUsageHandler(c)
+	if err != nil {
+		t.Errorf("createMemoryUsageHandler() error = %v", err)
+		return
+	}
+	expected := map[string]string{"message": "Memory usage created"}
+	var actual map[string]string
+	// Decode the response body into the actual map
+	if err := json.NewDecoder(resp.Body).Decode(&actual); err != nil {
+		t.Errorf("createCollectionHandler() error decoding response body: %v", err)
+		return
+	}
+
+	t.Logf("Response body = %v\n", actual)
+
+	if resp.Code != http.StatusCreated {
+		t.Errorf("createCollectionHandler() wrong status code = %v", resp.Code)
+		return
+	}
+
+	// Compare the decoded response with the expected value
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("createCollectionHandler() wrong response body. expected = %v, actual = %v", expected, actual)
+		return
 	}
 }

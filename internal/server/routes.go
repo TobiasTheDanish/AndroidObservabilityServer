@@ -3,6 +3,7 @@ package server
 import (
 	"ObservabilityServer/internal/auth"
 	"ObservabilityServer/internal/model"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -791,28 +792,33 @@ func (s *Server) createMemoryUsageHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Missing app id")
 	}
 
-	var data model.NewMemoryUsageDTO
-	if err := c.Bind(&data); err != nil {
+	usages := make([]model.NewMemoryUsageDTO, 0, 0)
+	if err := json.NewDecoder(c.Request().Body).Decode(&usages); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	if err := c.Validate(&data); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	log.Printf("Usages: %v\n", usages)
+	for _, usage := range usages {
+		if err := c.Validate(&usage); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
 	}
 
-	err := s.db.CreateMemoryUsage(model.NewMemoryUsageData{
-		Id:                 data.Id,
-		InstallationId:     data.InstallationId,
-		SessionId:          data.SessionId,
-		AppId:              appId.(int),
-		FreeMemory:         data.FreeMemory,
-		UsedMemory:         data.UsedMemory,
-		MaxMemory:          data.MaxMemory,
-		TotalMemory:        data.TotalMemory,
-		AvailableHeapSpace: data.AvailableHeapSpace,
-		CreatedAt:          data.CreatedAt,
-	})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Memory usage could not be created: %v", err))
+	for _, data := range usages {
+		err := s.db.CreateMemoryUsage(model.NewMemoryUsageData{
+			Id:                 data.Id,
+			InstallationId:     data.InstallationId,
+			SessionId:          data.SessionId,
+			AppId:              appId.(int),
+			FreeMemory:         data.FreeMemory,
+			UsedMemory:         data.UsedMemory,
+			MaxMemory:          data.MaxMemory,
+			TotalMemory:        data.TotalMemory,
+			AvailableHeapSpace: data.AvailableHeapSpace,
+			CreatedAt:          data.CreatedAt,
+		})
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Memory usage could not be created: %v", err))
+		}
 	}
 
 	return c.JSON(http.StatusCreated, map[string]string{
