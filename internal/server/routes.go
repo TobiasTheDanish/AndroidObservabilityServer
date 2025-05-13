@@ -792,10 +792,10 @@ func (s *Server) createMemoryUsageHandler(c echo.Context) error {
 	}
 
 	var data model.NewMemoryUsageDTO
-	if err := c.Bind(data); err != nil {
+	if err := c.Bind(&data); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	if err := c.Validate(data); err != nil {
+	if err := c.Validate(&data); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
