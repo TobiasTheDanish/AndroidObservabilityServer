@@ -7,6 +7,5 @@ CREATE TABLE IF NOT EXISTS public.ob_memory_usage (
 	free_memory BIGINT NOT NULL,
 	max_memory BIGINT NOT NULL,
 	total_memory BIGINT NOT NULL,
-	available_heap_space BIGINT NOT NULL,
-	created_at BIGINT NOT NULL
+	available_heap_space BIGINT NOT NULL
 );

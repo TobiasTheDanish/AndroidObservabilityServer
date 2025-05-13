@@ -1,0 +1,2 @@
+ALTER TABLE IF EXISTS public.ob_memory_usage
+	DROP COLUMN IF EXISTS created_at BIGINT NOT NULL;
