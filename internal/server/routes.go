@@ -324,6 +324,7 @@ func (s *Server) getAppDataHandler(c echo.Context) error {
 			SdkVersion: installation.SDKVersion,
 			Model:      installation.Model,
 			Brand:      installation.Brand,
+			CreatedAt:  installation.CreatedAt,
 		}
 	}
 	for i, session := range dataEntity.Sessions {
@@ -455,6 +456,7 @@ func (s *Server) getInstallationInfoHandler(c echo.Context) error {
 			SdkVersion: install.SDKVersion,
 			Model:      install.Model,
 			Brand:      install.Brand,
+			CreatedAt:  install.CreatedAt,
 		},
 	})
 }

@@ -313,7 +313,7 @@ func (s *service) GetApplication(id int) (model.ApplicationEntity, error) {
 }
 
 func (s *service) GetApplicationData(id int) (model.ApplicationDataEntity, error) {
-	installationQuery := "SELECT id, sdk_version, model, brand, app_id FROM public.ob_installations WHERE app_id = $1"
+	installationQuery := "SELECT id, sdk_version, model, brand, app_id, created_at FROM public.ob_installations WHERE app_id = $1"
 
 	rows, err := s.db.Query(installationQuery, id)
 	if err != nil {
@@ -323,7 +323,7 @@ func (s *service) GetApplicationData(id int) (model.ApplicationDataEntity, error
 	installations := make([]model.InstallationEntity, 0)
 	for rows.Next() {
 		var entity model.InstallationEntity
-		err := rows.Scan(&entity.Id, &entity.SDKVersion, &entity.Model, &entity.Brand, &entity.AppId)
+		err := rows.Scan(&entity.Id, &entity.SDKVersion, &entity.Model, &entity.Brand, &entity.AppId, &entity.CreatedAt)
 		if err != nil {
 			log.Printf("Error scanning installation entity: %v\n", err)
 			return model.ApplicationDataEntity{}, err
@@ -444,10 +444,10 @@ func (s *service) CreateInstallation(data model.NewInstallationData) error {
 }
 
 func (s *service) GetInstallation(id string) (model.InstallationEntity, error) {
-	query := "SELECT id, sdk_version, model, brand, app_id FROM public.ob_installations WHERE id = $1"
+	query := "SELECT id, sdk_version, model, brand, app_id, created_at FROM public.ob_installations WHERE id = $1"
 
 	var entity model.InstallationEntity
-	err := s.db.QueryRow(query, id).Scan(&entity.Id, &entity.SDKVersion, &entity.Model, &entity.Brand, &entity.AppId)
+	err := s.db.QueryRow(query, id).Scan(&entity.Id, &entity.SDKVersion, &entity.Model, &entity.Brand, &entity.AppId, &entity.CreatedAt)
 
 	return entity, err
 }
