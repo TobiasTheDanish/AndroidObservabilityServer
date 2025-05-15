@@ -44,6 +44,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 	appV1.GET("/installations/:id", s.getInstallationInfoHandler)
 
 	appV1.GET("/sessions/:id/resources", s.getSessionMemoryUsageHandler)
+	appV1.GET("/sessions/:id/events", s.getSessionEventsHandler)
+	appV1.GET("/sessions/:id/traces", s.getSessionTracesHandler)
 	appV1.GET("/sessions/:id", s.getSessionInfoHandler)
 
 	// Api v1 endpoints
@@ -504,6 +506,89 @@ func (s *Server) getSessionMemoryUsageHandler(c echo.Context) error {
 		"resources": map[string]any{
 			"memoryUsage": memDTOS,
 		},
+	})
+}
+
+func (s *Server) getSessionEventsHandler(c echo.Context) error {
+	sessionId := c.Param("id")
+	session, err := s.db.GetSession(sessionId)
+	if err != nil {
+		log.Printf("Getting session failed: %v\n", err)
+		return echo.NewHTTPError(http.StatusBadRequest, "Unknown session id")
+	}
+	app, err := s.db.GetApplication(session.AppId)
+	if err != nil {
+		log.Printf("Getting app failed: %v\n", err)
+		return echo.NewHTTPError(http.StatusBadRequest, "Unknown session id")
+	}
+	authSession := c.Get("session").(model.AuthSessionEntity)
+	if !s.db.ValidateTeamUserLink(app.TeamId, authSession.UserId) {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Access denied to this app")
+	}
+
+	entities, err := s.db.GetEventsBySessionId(session.Id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	DTOS := make([]model.EventDTO, len(entities), len(entities))
+	for i, ent := range entities {
+		DTOS[i] = model.EventDTO{
+			Id:             ent.Id,
+			SessionId:      ent.SessionId,
+			Type:           ent.Type,
+			SerializedData: ent.SerializedData,
+			CreatedAt:      ent.CreatedAt,
+		}
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"message": "Success",
+		"events":  DTOS,
+	})
+}
+
+func (s *Server) getSessionTracesHandler(c echo.Context) error {
+	sessionId := c.Param("id")
+	session, err := s.db.GetSession(sessionId)
+	if err != nil {
+		log.Printf("Getting session failed: %v\n", err)
+		return echo.NewHTTPError(http.StatusBadRequest, "Unknown session id")
+	}
+	app, err := s.db.GetApplication(session.AppId)
+	if err != nil {
+		log.Printf("Getting app failed: %v\n", err)
+		return echo.NewHTTPError(http.StatusBadRequest, "Unknown session id")
+	}
+	authSession := c.Get("session").(model.AuthSessionEntity)
+	if !s.db.ValidateTeamUserLink(app.TeamId, authSession.UserId) {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Access denied to this app")
+	}
+
+	entities, err := s.db.GetTracesBySessionId(session.Id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	DTOS := make([]model.TraceDTO, len(entities), len(entities))
+	for i, ent := range entities {
+		DTOS[i] = model.TraceDTO{
+			TraceId:      ent.TraceId,
+			GroupId:      ent.GroupId,
+			SessionId:    ent.SessionId,
+			ParentId:     ent.ParentId,
+			Name:         ent.Name,
+			Status:       ent.Status,
+			ErrorMessage: ent.ErrorMessage,
+			StartedAt:    ent.StartedAt,
+			EndedAt:      ent.EndedAt,
+			HasEnded:     ent.HasEnded,
+		}
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"message": "Success",
+		"traces":  DTOS,
 	})
 }
 
