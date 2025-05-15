@@ -9,6 +9,15 @@ type NewEventData struct {
 	CreatedAt      int64
 }
 
+type EventEntity struct {
+	Id             string
+	SessionId      string
+	AppId          int
+	Type           string
+	SerializedData string
+	CreatedAt      int64
+}
+
 type EventDTO struct {
 	Id             string `json:"id" validate:"required,uuid"`
 	SessionId      string `json:"sessionId" validate:"required,uuid"`

@@ -394,6 +394,54 @@ func TestCreateEvent(t *testing.T) {
 	}
 }
 
+func TestGetEventsBySessionId(t *testing.T) {
+	srv := New()
+
+	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
+	appId, _ := srv.CreateApplication(model.NewApplicationData{
+		Name:   "TestApp",
+		TeamId: teamId,
+	})
+
+	sessionData := model.NewSessionData{
+		Id:             "TestSession1234",
+		InstallationId: "InstallationIdForTestSession123",
+		AppId:          appId,
+		CreatedAt:      1,
+		Crashed:        false,
+	}
+
+	_ = srv.CreateSession(sessionData)
+
+	eventData1 := model.NewEventData{
+		Id:             "TestEvent1",
+		SessionId:      sessionData.Id,
+		AppId:          appId,
+		Type:           "TestEvent",
+		SerializedData: "{}",
+		CreatedAt:      2,
+	}
+
+	err := srv.CreateEvent(eventData1)
+	if err != nil {
+		t.Fatalf("CreateEvent #1 failed: %v\n", err)
+	}
+
+	entities, err := srv.GetEventsBySessionId(sessionData.Id)
+	if err != nil {
+		t.Fatalf("GetEventsBySessionId failed: %v\n", err)
+	}
+
+	if len(entities) < 1 {
+		t.Fatalf("Got %d event entities, but expected %d or more\n", len(entities), 1)
+	}
+
+	ent1 := entities[len(entities)-1]
+	if ent1.Id != eventData1.Id || ent1.SessionId != eventData1.SessionId || ent1.AppId != eventData1.AppId || ent1.Type != eventData1.Type || ent1.SerializedData != eventData1.SerializedData || ent1.CreatedAt != eventData1.CreatedAt {
+		t.Errorf("Got event entity: (%v), but expected: (%v)\n", ent1, eventData1)
+	}
+}
+
 func TestCreateTrace(t *testing.T) {
 	srv := New()
 
@@ -430,6 +478,59 @@ func TestCreateTrace(t *testing.T) {
 	err := srv.CreateTrace(traceData)
 	if err != nil {
 		t.Fatalf("CreateTrace failed: %v\n", err)
+	}
+}
+
+func TestGetTracesBySessionId(t *testing.T) {
+	srv := New()
+
+	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
+	appId, _ := srv.CreateApplication(model.NewApplicationData{
+		Name:   "TestApp",
+		TeamId: teamId,
+	})
+
+	sessionData := model.NewSessionData{
+		Id:             "TestSession1234",
+		InstallationId: "InstallationIdForTestSession123",
+		AppId:          appId,
+		CreatedAt:      1,
+		Crashed:        false,
+	}
+
+	_ = srv.CreateSession(sessionData)
+
+	traceData1 := model.NewTraceData{
+		TraceId:      "TestTrace2",
+		SessionId:    sessionData.Id,
+		GroupId:      "TestGroup",
+		ParentId:     "",
+		AppId:        appId,
+		Name:         "TraceTest",
+		Status:       "Ok",
+		ErrorMessage: "",
+		StartedAt:    2,
+		EndedAt:      4,
+		HasEnded:     true,
+	}
+
+	err := srv.CreateTrace(traceData1)
+	if err != nil {
+		t.Fatalf("CreateTrace failed: %v\n", err)
+	}
+
+	entities, err := srv.GetTracesBySessionId(sessionData.Id)
+	if err != nil {
+		t.Fatalf("GetTracesBySessionId failed: %v\n", err)
+	}
+
+	if len(entities) < 1 {
+		t.Fatalf("Got %d trace entities, but expected %d or more\n", len(entities), 1)
+	}
+
+	ent1 := entities[len(entities)-1]
+	if ent1.TraceId != traceData1.TraceId || ent1.GroupId != traceData1.GroupId || ent1.SessionId != traceData1.SessionId || ent1.AppId != traceData1.AppId || ent1.Name != traceData1.Name || ent1.Status != traceData1.Status || ent1.HasEnded != traceData1.HasEnded {
+		t.Errorf("Got trace entity: (%v), but expected: (%v)\n", ent1, traceData1)
 	}
 }
 

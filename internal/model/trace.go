@@ -14,6 +14,20 @@ type NewTraceData struct {
 	HasEnded     bool
 }
 
+type TraceEntity struct {
+	TraceId      string
+	SessionId    string
+	GroupId      string
+	ParentId     string
+	AppId        int
+	Name         string
+	Status       string
+	ErrorMessage string
+	StartedAt    int64
+	EndedAt      int64
+	HasEnded     bool
+}
+
 type TraceDTO struct {
 	TraceId      string `json:"traceId" validate:"required,uuid"`
 	SessionId    string `json:"sessionId" validate:"required,uuid"`

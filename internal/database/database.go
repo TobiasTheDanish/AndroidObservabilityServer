@@ -56,7 +56,10 @@ type Service interface {
 	MarkSessionCrashed(id string, ownerId int) error
 
 	CreateEvent(data model.NewEventData) error
+	GetEventsBySessionId(sessionId string) ([]model.EventEntity, error)
+
 	CreateTrace(data model.NewTraceData) error
+	GetTracesBySessionId(sessionId string) ([]model.TraceEntity, error)
 
 	CreateMemoryUsage(data model.NewMemoryUsageData) error
 	GetMemoryUsageById(id string) (model.MemoryUsageEntity, error)
@@ -504,6 +507,35 @@ func (s *service) CreateEvent(data model.NewEventData) error {
 	return nil
 }
 
+func (s *service) GetEventsBySessionId(sessionId string) ([]model.EventEntity, error) {
+	query := "SELECT id, session_id, app_id, created_at, type, serialized_data FROM public.ob_events WHERE session_id = $1"
+
+	rows, err := s.db.Query(query, sessionId)
+	if err != nil {
+		return nil, err
+	}
+
+	entities := make([]model.EventEntity, 0)
+	for rows.Next() {
+		var ent model.EventEntity
+		err = rows.Scan(
+			&ent.Id,
+			&ent.SessionId,
+			&ent.AppId,
+			&ent.CreatedAt,
+			&ent.Type,
+			&ent.SerializedData,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		entities = append(entities, ent)
+	}
+
+	return entities, err
+}
+
 func (s *service) CreateTrace(data model.NewTraceData) error {
 	sql := "INSERT INTO public.ob_trace( trace_id, session_id, group_id, parent_id, app_id, name, status, error_message, started_at, ended_at, has_ended) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"
 
@@ -527,6 +559,40 @@ func (s *service) CreateTrace(data model.NewTraceData) error {
 	}
 
 	return nil
+}
+
+func (s *service) GetTracesBySessionId(sessionId string) ([]model.TraceEntity, error) {
+	query := "SELECT trace_id, session_id, group_id, parent_id, app_id, name, status, error_message, started_at, ended_at, has_ended FROM public.ob_trace WHERE session_id = $1"
+
+	rows, err := s.db.Query(query, sessionId)
+	if err != nil {
+		return nil, err
+	}
+
+	entities := make([]model.TraceEntity, 0)
+	for rows.Next() {
+		var ent model.TraceEntity
+		err = rows.Scan(
+			&ent.TraceId,
+			&ent.SessionId,
+			&ent.GroupId,
+			&ent.ParentId,
+			&ent.AppId,
+			&ent.Name,
+			&ent.Status,
+			&ent.ErrorMessage,
+			&ent.StartedAt,
+			&ent.EndedAt,
+			&ent.HasEnded,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		entities = append(entities, ent)
+	}
+
+	return entities, err
 }
 
 func (s *service) CreateMemoryUsage(data model.NewMemoryUsageData) error {
