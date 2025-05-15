@@ -426,7 +426,7 @@ func (s *service) MarkSessionCrashed(id string, ownerId int) error {
 }
 
 func (s *service) CreateInstallation(data model.NewInstallationData) error {
-	res, err := s.db.Exec("INSERT INTO public.ob_installations (id, app_id, sdk_version, model, brand) VALUES ($1, $2, $3, $4, $5)", data.Id, data.AppId, data.SdkVersion, data.Model, data.Brand)
+	res, err := s.db.Exec("INSERT INTO public.ob_installations (id, app_id, sdk_version, model, brand, created_at) VALUES ($1, $2, $3, $4, $5, $6)", data.Id, data.AppId, data.SdkVersion, data.Model, data.Brand, data.CreatedAt)
 	if err != nil {
 		return err
 	}

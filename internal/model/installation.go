@@ -6,6 +6,7 @@ type NewInstallationData struct {
 	SdkVersion int
 	Model      string
 	Brand      string
+	CreatedAt  int64
 }
 
 type InstallationDTO struct {
@@ -13,7 +14,7 @@ type InstallationDTO struct {
 	SdkVersion int    `json:"sdkVersion" validate:"required"`
 	Model      string `json:"model" validate:"required"`
 	Brand      string `json:"brand" validate:"required"`
-	CreatedAt  int64  `json:"createdAt"`
+	CreatedAt  int64  `json:"createdAt" validate:"required"`
 }
 
 type InstallationEntity struct {

@@ -470,6 +470,7 @@ func TestCreateInstallation(t *testing.T) {
 		SdkVersion: 32,
 		Model:      "s32",
 		Brand:      "Samsung",
+		CreatedAt:  17234543,
 	}
 	body, err := json.Marshal(installation)
 	if err != nil {
@@ -515,6 +516,7 @@ func TestCreateInstallationNonUUID(t *testing.T) {
 		SdkVersion: 32,
 		Model:      "s32",
 		Brand:      "Samsung",
+		CreatedAt:  171234553,
 	}
 	body, err := json.Marshal(installation)
 	if err != nil {

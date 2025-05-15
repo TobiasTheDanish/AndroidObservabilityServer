@@ -561,6 +561,7 @@ func (s *Server) createInstallationHandler(c echo.Context) error {
 		SdkVersion: installationDTO.SdkVersion,
 		Model:      installationDTO.Model,
 		Brand:      installationDTO.Brand,
+		CreatedAt:  installationDTO.CreatedAt,
 	})
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{
