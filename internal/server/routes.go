@@ -13,12 +13,23 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
+/**
+* @apiDefine ApiKeyAuth
+* @apiHeader {String} authorization Api key prefixed with 'Bearer '
+* @apiHeaderExample {json} Auth-Example:
+* {
+*     "Authorization": "Bearer {your-api-key}"
+* }
+ */
+
 func (s *Server) RegisterRoutes() http.Handler {
 	e := echo.New()
 	e.Validator = NewValidator()
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
+
+	e.Static("/docs", "doc")
 
 	e.GET("/", s.HelloWorldHandler)
 	e.GET("/health", s.healthHandler)
@@ -73,6 +84,12 @@ func (s *Server) healthHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, s.db.Health())
 }
 
+/**
+* @api {get} /app/v1/teams Get teams
+* @apiName GetTeams
+* @apiGroup Teams
+* @apiDescription Get all teams available for the authenticated user
+ */
 func (s *Server) getTeamsHandler(c echo.Context) error {
 	session := c.Get("session").(model.AuthSessionEntity)
 
@@ -95,6 +112,12 @@ func (s *Server) getTeamsHandler(c echo.Context) error {
 	})
 }
 
+/**
+* @api {post} /app/v1/teams Create a team
+* @apiName CreateTeam
+* @apiGroup Teams
+* @apiDescription Create a new team only available for the authenticated user
+ */
 func (s *Server) createTeamHandler(c echo.Context) error {
 	var teamDTO model.CreateTeamDTO
 	if err := c.Bind(&teamDTO); err != nil {
@@ -117,6 +140,13 @@ func (s *Server) createTeamHandler(c echo.Context) error {
 	})
 }
 
+/**
+* @api {get} /app/v1/teams/:teamid/apps get apps
+* @apiname getapps
+* @apigroup apps
+* @apidescription get all apps available for the given team
+* @apiparam {number} teamid unique id of the team to create a new app for
+ */
 func (s *Server) getAppsHandler(c echo.Context) error {
 	teamId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -262,6 +292,12 @@ func (s *Server) validateSessionIdHandler(c echo.Context) error {
 	})
 }
 
+/**
+* @api {post} /app/v1/apps Create an app
+* @apiName CreateApp
+* @apiGroup Apps
+* @apiDescription Create a new app available to the team
+ */
 func (s *Server) createAppHandler(c echo.Context) error {
 	var appDTO model.CreateApplicationDTO
 	if err := c.Bind(&appDTO); err != nil {
@@ -292,6 +328,13 @@ func (s *Server) createAppHandler(c echo.Context) error {
 	})
 }
 
+/**
+* @api {get} /app/v1/apps/:id Get app
+* @apiName GetApp
+* @apiGroup Apps
+* @apiDescription Get info about an application
+* @apiParam {number} id Unique id of the app to provide info about
+ */
 func (s *Server) getAppDataHandler(c echo.Context) error {
 	appId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -345,6 +388,13 @@ func (s *Server) getAppDataHandler(c echo.Context) error {
 	})
 }
 
+/**
+* @api {post} /app/v1/apps/:id/keys Create api key
+* @apiName CreateApiKey
+* @apiGroup Keys
+* @apiDescription Create a new api for the given app
+* @apiParam {number} id Unique id of the app to generate api key for
+ */
 func (s *Server) createKeyHandler(c echo.Context) error {
 	var apiKeyDTO model.NewApiKeyDTO
 	id, err := strconv.Atoi(c.Param("id"))
@@ -620,6 +670,13 @@ func (s *Server) getSessionInfoHandler(c echo.Context) error {
 	})
 }
 
+/**
+* @api {post} /api/v1/installations Create a new installation
+* @apiName CreateInstallation
+* @apiGroup Installation
+*
+* @apiUse ApiKeyAuth
+ */
 func (s *Server) createInstallationHandler(c echo.Context) error {
 	appId := c.Get("appId")
 	if appId == nil {
@@ -659,6 +716,19 @@ func (s *Server) createInstallationHandler(c echo.Context) error {
 	})
 }
 
+/**
+* @api {post} /api/v1/collection Create a collection of data
+* @apiName CreateCollection
+* @apiGroup Collection
+*
+* @apiDescription Start the creation of a whole collection of data.
+* A collection can contain:
+* 0-1 sessions,
+* 0-* events,
+* 0-* traces.
+*
+* @apiUse ApiKeyAuth
+ */
 func (s *Server) createCollectionHandler(c echo.Context) error {
 	appId := c.Get("appId")
 	if appId == nil {
@@ -753,6 +823,13 @@ func (s *Server) createCollectionHandler(c echo.Context) error {
 	})
 }
 
+/**
+* @api {post} /api/v1/sessions Create a session
+* @apiName CreateSession
+* @apiGroup Session
+*
+* @apiUse ApiKeyAuth
+ */
 func (s *Server) createSessionHandler(c echo.Context) error {
 	appId := c.Get("appId")
 	if appId == nil {
@@ -787,6 +864,14 @@ func (s *Server) createSessionHandler(c echo.Context) error {
 	})
 }
 
+/**
+* @api {post} /api/v1/sessions/:id/crash Mark a session as crashed
+* @apiName MarkSessionCrash
+* @apiGroup Session
+* @apiParam {String} id UUID of crashed session
+*
+* @apiUse ApiKeyAuth
+ */
 func (s *Server) sessionCrashHandler(c echo.Context) error {
 	appId := c.Get("appId")
 	if appId == nil {
@@ -803,6 +888,13 @@ func (s *Server) sessionCrashHandler(c echo.Context) error {
 	return c.JSON(http.StatusCreated, map[string]string{"message": "Session marked as crashed"})
 }
 
+/**
+* @api {post} /api/v1/events Create an event
+* @apiName CreateEvent
+* @apiGroup Event
+*
+* @apiUse ApiKeyAuth
+ */
 func (s *Server) createEventHandler(c echo.Context) error {
 	appId := c.Get("appId")
 	if appId == nil {
@@ -838,6 +930,13 @@ func (s *Server) createEventHandler(c echo.Context) error {
 	})
 }
 
+/**
+* @api {post} /api/v1/traces Create a trace
+* @apiName CreateTrace
+* @apiGroup Trace
+*
+* @apiUse ApiKeyAuth
+ */
 func (s *Server) createTraceHandler(c echo.Context) error {
 	appId := c.Get("appId")
 	if appId == nil {
@@ -874,6 +973,13 @@ func (s *Server) createTraceHandler(c echo.Context) error {
 	})
 }
 
+/**
+* @api {post} /api/v1/resources/memory Create a memory usage snapshot
+* @apiName CreateMemoryUsage
+* @apiGroup Resources
+*
+* @apiUse ApiKeyAuth
+ */
 func (s *Server) createMemoryUsageHandler(c echo.Context) error {
 	appId := c.Get("appId")
 	if appId == nil {

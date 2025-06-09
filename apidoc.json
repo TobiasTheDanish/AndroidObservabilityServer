@@ -1,0 +1,6 @@
+{
+  "name": "Observability REST api",
+  "version": "1.0.0-alpha",
+  "description": "This is the api used by Observability SDK's and the webapp",
+  "url": "api.observe.tobiasthedanish.dk"
+}
