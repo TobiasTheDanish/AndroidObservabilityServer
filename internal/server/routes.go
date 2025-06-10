@@ -1,6 +1,7 @@
 package server
 
 import (
+	"ObservabilityServer/doc"
 	"ObservabilityServer/internal/auth"
 	"ObservabilityServer/internal/model"
 	"encoding/json"
@@ -29,7 +30,11 @@ func (s *Server) RegisterRoutes() http.Handler {
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 
-	e.Static("/docs", "doc")
+	e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
+		HTML5:      true,
+		Filesystem: doc.DocFiles(),
+		Root:       ".",
+	}))
 
 	e.GET("/", s.HelloWorldHandler)
 	e.GET("/health", s.healthHandler)
