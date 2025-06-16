@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"os"
 	"strconv"
 	"time"
 
@@ -14,7 +13,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	_ "github.com/joho/godotenv/autoload"
+
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -80,17 +79,10 @@ type service struct {
 }
 
 var (
-	database   = os.Getenv("OBSERVE_DB_DATABASE")
-	password   = os.Getenv("OBSERVE_DB_PASSWORD")
-	username   = os.Getenv("OBSERVE_DB_USERNAME")
-	port       = os.Getenv("OBSERVE_DB_PORT")
-	host       = os.Getenv("OBSERVE_DB_HOST")
-	schema     = os.Getenv("OBSERVE_DB_SCHEMA")
-	migrations = os.Getenv("MIGRATIONS_PATH")
 	dbInstance *service
 )
 
-func SetupTestDatabase() (func(context.Context, ...testcontainers.TerminateOption) error, error) {
+func SetupTestDatabase(schema string) (func(context.Context, ...testcontainers.TerminateOption) error, model.DatabaseConfig, error) {
 	var (
 		dbName = "routes_database"
 		dbPwd  = "password"
@@ -109,46 +101,53 @@ func SetupTestDatabase() (func(context.Context, ...testcontainers.TerminateOptio
 				WithStartupTimeout(5*time.Second)),
 	)
 	if err != nil {
-		return nil, err
+		return nil, model.DatabaseConfig{}, err
 	}
 
-	database = dbName
-	password = dbPwd
-	username = dbUser
+	database := dbName
+	password := dbPwd
+	username := dbUser
 	dbHost, err := dbContainer.Host(context.Background())
 	if err != nil {
-		return dbContainer.Terminate, err
+		return dbContainer.Terminate, model.DatabaseConfig{}, err
 	}
 
 	dbPort, err := dbContainer.MappedPort(context.Background(), "5432/tcp")
 	if err != nil {
-		return dbContainer.Terminate, err
+		return dbContainer.Terminate, model.DatabaseConfig{}, err
 	}
 
-	host = dbHost
-	port = dbPort.Port()
+	host := dbHost
+	port := dbPort.Port()
 
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&search_path=%s", username, password, host, port, database, schema)
-	sourcePath := fmt.Sprintf("file://../../migrations")
+	sourcePath := "file://../../migrations"
 
 	m, err := migrate.New(sourcePath, connStr)
 	if err != nil {
-		return dbContainer.Terminate, fmt.Errorf("Error creating migrate instance: %v", err)
+		return dbContainer.Terminate, model.DatabaseConfig{}, fmt.Errorf("Error creating migrate instance: %v", err)
 	}
 	err = m.Up()
 	if err != nil && err != migrate.ErrNoChange {
-		return dbContainer.Terminate, fmt.Errorf("Error migrating up: %v", err)
+		return dbContainer.Terminate, model.DatabaseConfig{}, fmt.Errorf("Error migrating up: %v", err)
 	}
 
-	return dbContainer.Terminate, nil
+	return dbContainer.Terminate, model.DatabaseConfig{
+		Database: database,
+		Password: password,
+		Username: username,
+		Port:     port,
+		Host:     host,
+		Schema:   schema,
+	}, nil
 }
 
-func New() Service {
+func New(config model.DatabaseConfig) Service {
 	// Reuse Connection
 	if dbInstance != nil {
 		return dbInstance
 	}
-	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&search_path=%s", username, password, host, port, database, schema)
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&search_path=%s", config.Username, config.Password, config.Host, config.Port, config.Database, config.Schema)
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {
 		log.Fatal(err)
@@ -770,6 +769,6 @@ func (s *service) Health() map[string]string {
 // If the connection is successfully closed, it returns nil.
 // If an error occurs while closing the connection, it returns the error.
 func (s *service) Close() error {
-	log.Printf("Disconnected from database: %s", database)
+	log.Printf("Disconnected from database\n")
 	return s.db.Close()
 }

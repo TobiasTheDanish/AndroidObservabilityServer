@@ -1,7 +1,7 @@
 package server
 
 import (
-	"ObservabilityServer/doc"
+	doc "ObservabilityServer"
 	"ObservabilityServer/internal/auth"
 	"ObservabilityServer/internal/model"
 	"encoding/json"
@@ -31,12 +31,10 @@ func (s *Server) RegisterRoutes() http.Handler {
 	e.Use(middleware.CORS())
 
 	e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
-		HTML5:      true,
+		Root:       "doc",
 		Filesystem: doc.DocFiles(),
-		Root:       ".",
 	}))
 
-	e.GET("/", s.HelloWorldHandler)
 	e.GET("/health", s.healthHandler)
 
 	// AUTH endpoints
@@ -75,14 +73,6 @@ func (s *Server) RegisterRoutes() http.Handler {
 	apiV1.POST("/resources/memory", s.createMemoryUsageHandler)
 
 	return e
-}
-
-func (s *Server) HelloWorldHandler(c echo.Context) error {
-	resp := map[string]string{
-		"message": "Hello World",
-	}
-
-	return c.JSON(http.StatusOK, resp)
 }
 
 func (s *Server) healthHandler(c echo.Context) error {

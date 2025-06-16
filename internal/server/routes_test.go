@@ -23,12 +23,12 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	teardown, err := database.SetupTestDatabase()
+	teardown, config, err := database.SetupTestDatabase("public")
 	if err != nil {
 		log.Fatalf("could not start postgres container: %v", err)
 	}
 
-	db = database.New()
+	db = database.New(config)
 
 	teamId, err := db.CreateTeam(model.NewTeamData{Name: "Test team"})
 	if err != nil {
