@@ -1,6 +1,6 @@
 # Project ObservabilityServer
 
-One Paragraph of project description goes here
+The server for the Observability project
 
 ## Getting Started
 
