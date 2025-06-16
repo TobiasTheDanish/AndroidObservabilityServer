@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-//go:embed assets index.html
+//go:embed doc
 var content embed.FS
 
 func DocFiles() http.FileSystem {

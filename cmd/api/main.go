@@ -9,7 +9,10 @@ import (
 	"syscall"
 	"time"
 
+	"ObservabilityServer/internal/model"
 	"ObservabilityServer/internal/server"
+
+	"github.com/anvidev/goenv"
 )
 
 func gracefulShutdown(apiServer *http.Server, done chan bool) {
@@ -37,8 +40,18 @@ func gracefulShutdown(apiServer *http.Server, done chan bool) {
 }
 
 func main() {
+	err := goenv.Load()
+	if err != nil {
+		log.Fatalf("Error loading environment variables: %v\n", err)
+	}
 
-	server := server.NewServer()
+	var config model.Config
+	err = goenv.Struct(&config)
+	if err != nil {
+		log.Fatalf("Error reading environment variables: %v\n", err)
+	}
+
+	server := server.NewServer(config)
 
 	// Create a done channel to signal when the shutdown is complete
 	done := make(chan bool, 1)
@@ -46,7 +59,8 @@ func main() {
 	// Run graceful shutdown in a separate goroutine
 	go gracefulShutdown(server, done)
 
-	err := server.ListenAndServe()
+	log.Printf("Server listening on :%d\n", config.Port)
+	err = server.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		panic(fmt.Sprintf("http server error: %s", err))
 	}

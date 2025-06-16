@@ -9,11 +9,17 @@ import (
 	"testing"
 )
 
+var (
+	config model.DatabaseConfig
+)
+
 func TestMain(m *testing.M) {
-	teardown, err := SetupTestDatabase()
+	teardown, conf, err := SetupTestDatabase("public")
 	if err != nil {
 		log.Fatalf("could not start postgres container: %v", err)
 	}
+
+	config = conf
 
 	m.Run()
 
@@ -23,14 +29,14 @@ func TestMain(m *testing.M) {
 }
 
 func TestNew(t *testing.T) {
-	srv := New()
+	srv := New(config)
 	if srv == nil {
 		t.Fatal("New() returned nil")
 	}
 }
 
 func TestCreateTeam(t *testing.T) {
-	srv := New()
+	srv := New(config)
 	teamId, err := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
 	if err != nil || teamId == -1 {
 		t.Fatalf("Creating team failed. %v\n", err)
@@ -38,7 +44,7 @@ func TestCreateTeam(t *testing.T) {
 }
 
 func TestCreateUser(t *testing.T) {
-	srv := New()
+	srv := New(config)
 	pwHash, err := auth.HashPassword("Abc123")
 	if err != nil {
 		t.Fatalf("Error hashing pw: %v\n", err)
@@ -54,7 +60,7 @@ func TestCreateUser(t *testing.T) {
 }
 
 func TestGetUserByName(t *testing.T) {
-	srv := New()
+	srv := New(config)
 	pwHash, _ := auth.HashPassword("Abc123")
 
 	_, err := srv.CreateUser(model.NewUserData{
@@ -77,7 +83,7 @@ func TestGetUserByName(t *testing.T) {
 }
 
 func TestGetUserById(t *testing.T) {
-	srv := New()
+	srv := New(config)
 	pwHash, _ := auth.HashPassword("Abc123")
 
 	id, err := srv.CreateUser(model.NewUserData{
@@ -100,7 +106,7 @@ func TestGetUserById(t *testing.T) {
 }
 
 func TestCreateTeamUserLink(t *testing.T) {
-	srv := New()
+	srv := New(config)
 
 	teamId, err := srv.CreateTeam(model.NewTeamData{Name: "Test Team 2"})
 	if err != nil {
@@ -135,7 +141,7 @@ func TestCreateTeamUserLink(t *testing.T) {
 }
 
 func TestCreateAuthSession(t *testing.T) {
-	srv := New()
+	srv := New(config)
 	pwHash, _ := auth.HashPassword("Abc123")
 
 	userId, err := srv.CreateUser(model.NewUserData{
@@ -167,7 +173,7 @@ func TestCreateAuthSession(t *testing.T) {
 }
 
 func TestCreateApp(t *testing.T) {
-	srv := New()
+	srv := New(config)
 
 	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
 	appId, err := srv.CreateApplication(model.NewApplicationData{
@@ -185,7 +191,7 @@ func TestCreateApp(t *testing.T) {
 }
 
 func TestGetApplicationData(t *testing.T) {
-	srv := New()
+	srv := New(config)
 
 	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
 	appId, _ := srv.CreateApplication(model.NewApplicationData{
@@ -243,7 +249,7 @@ func TestGetApplicationData(t *testing.T) {
 }
 
 func TestValidateApiKey(t *testing.T) {
-	srv := New()
+	srv := New(config)
 
 	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
 	appId, err := srv.CreateApplication(model.NewApplicationData{
@@ -277,7 +283,7 @@ func TestValidateApiKey(t *testing.T) {
 }
 
 func TestCreateInstallation(t *testing.T) {
-	srv := New()
+	srv := New(config)
 
 	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
 	appId, _ := srv.CreateApplication(model.NewApplicationData{
@@ -305,7 +311,7 @@ func TestCreateInstallation(t *testing.T) {
 }
 
 func TestCreateSession(t *testing.T) {
-	srv := New()
+	srv := New(config)
 
 	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
 	appId, _ := srv.CreateApplication(model.NewApplicationData{
@@ -333,7 +339,7 @@ func TestCreateSession(t *testing.T) {
 }
 
 func TestMarkSessionCrashed(t *testing.T) {
-	srv := New()
+	srv := New(config)
 
 	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
 	appId, _ := srv.CreateApplication(model.NewApplicationData{
@@ -361,7 +367,7 @@ func TestMarkSessionCrashed(t *testing.T) {
 }
 
 func TestCreateEvent(t *testing.T) {
-	srv := New()
+	srv := New(config)
 
 	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
 	appId, _ := srv.CreateApplication(model.NewApplicationData{
@@ -395,7 +401,7 @@ func TestCreateEvent(t *testing.T) {
 }
 
 func TestGetEventsBySessionId(t *testing.T) {
-	srv := New()
+	srv := New(config)
 
 	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
 	appId, _ := srv.CreateApplication(model.NewApplicationData{
@@ -443,7 +449,7 @@ func TestGetEventsBySessionId(t *testing.T) {
 }
 
 func TestCreateTrace(t *testing.T) {
-	srv := New()
+	srv := New(config)
 
 	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
 	appId, _ := srv.CreateApplication(model.NewApplicationData{
@@ -482,7 +488,7 @@ func TestCreateTrace(t *testing.T) {
 }
 
 func TestGetTracesBySessionId(t *testing.T) {
-	srv := New()
+	srv := New(config)
 
 	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
 	appId, _ := srv.CreateApplication(model.NewApplicationData{
@@ -535,7 +541,7 @@ func TestGetTracesBySessionId(t *testing.T) {
 }
 
 func TestCreateMemoryUsage(t *testing.T) {
-	srv := New()
+	srv := New(config)
 
 	teamId, _ := srv.CreateTeam(model.NewTeamData{Name: "Test Team"})
 	appId, _ := srv.CreateApplication(model.NewApplicationData{
@@ -591,7 +597,7 @@ func TestCreateMemoryUsage(t *testing.T) {
 }
 
 func TestHealth(t *testing.T) {
-	srv := New()
+	srv := New(config)
 
 	stats := srv.Health()
 
@@ -609,7 +615,7 @@ func TestHealth(t *testing.T) {
 }
 
 func TestClose(t *testing.T) {
-	srv := New()
+	srv := New(config)
 
 	if srv.Close() != nil {
 		t.Fatalf("expected Close() to return nil")
