@@ -129,6 +129,16 @@ func (s *Server) createTeamHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 
+	session := c.Get("session").(model.AuthSessionEntity)
+	err = s.db.CreateTeamUserLink(model.NewTeamUserLinkData{
+		TeamId: id,
+		UserId: session.UserId,
+		Role:   "owner",
+	})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
 	return c.JSON(http.StatusCreated, map[string]any{
 		"message": "Team created",
 		"id":      id,
