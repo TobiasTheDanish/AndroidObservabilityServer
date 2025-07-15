@@ -360,11 +360,10 @@ func (s *Server) getAppDataHandler(c echo.Context) error {
 
 	for i, installation := range dataEntity.Installations {
 		dataDTO.Installations[i] = model.InstallationDTO{
-			Id:         installation.Id,
-			SdkVersion: installation.SDKVersion,
-			Model:      installation.Model,
-			Brand:      installation.Brand,
-			CreatedAt:  installation.CreatedAt,
+			Id:        installation.Id,
+			Type:      installation.Type,
+			Data:      installation.Data,
+			CreatedAt: installation.CreatedAt,
 		}
 	}
 	for i, session := range dataEntity.Sessions {
@@ -499,11 +498,10 @@ func (s *Server) getInstallationInfoHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]any{
 		"message": "Success",
 		"installation": model.InstallationDTO{
-			Id:         install.Id,
-			SdkVersion: install.SDKVersion,
-			Model:      install.Model,
-			Brand:      install.Brand,
-			CreatedAt:  install.CreatedAt,
+			Id:        install.Id,
+			Type:      install.Type,
+			Data:      install.Data,
+			CreatedAt: install.CreatedAt,
 		},
 	})
 }
@@ -678,7 +676,7 @@ func (s *Server) createInstallationHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Missing app id")
 	}
 
-	var installationDTO model.InstallationDTO
+	var installationDTO model.AndroidInstallationDTO
 	if err := c.Bind(&installationDTO); err != nil {
 		log.Println(err)
 		return c.JSON(http.StatusBadRequest, map[string]string{
@@ -693,12 +691,15 @@ func (s *Server) createInstallationHandler(c echo.Context) error {
 	}
 
 	err := s.db.CreateInstallation(model.NewInstallationData{
-		Id:         installationDTO.Id,
-		AppId:      appId.(int),
-		SdkVersion: installationDTO.SdkVersion,
-		Model:      installationDTO.Model,
-		Brand:      installationDTO.Brand,
-		CreatedAt:  installationDTO.CreatedAt,
+		Id:    installationDTO.Id,
+		AppId: appId.(int),
+		Type:  "android",
+		Data: map[string]any{
+			"sdkVersion": installationDTO.SdkVersion,
+			"model":      installationDTO.Model,
+			"brand":      installationDTO.Brand,
+		},
+		CreatedAt: installationDTO.CreatedAt,
 	})
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{

@@ -4,9 +4,11 @@ import (
 	"ObservabilityServer/internal/model"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -315,7 +317,7 @@ func (s *service) GetApplication(id int) (model.ApplicationEntity, error) {
 }
 
 func (s *service) GetApplicationData(id int) (model.ApplicationDataEntity, error) {
-	installationQuery := "SELECT id, sdk_version, model, brand, app_id, created_at FROM public.ob_installations WHERE app_id = $1"
+	installationQuery := "SELECT id, type, data, app_id, created_at FROM public.ob_installations WHERE app_id = $1"
 
 	rows, err := s.db.Query(installationQuery, id)
 	if err != nil {
@@ -324,10 +326,22 @@ func (s *service) GetApplicationData(id int) (model.ApplicationDataEntity, error
 
 	installations := make([]model.InstallationEntity, 0)
 	for rows.Next() {
+		var entityData []byte
 		var entity model.InstallationEntity
-		err := rows.Scan(&entity.Id, &entity.SDKVersion, &entity.Model, &entity.Brand, &entity.AppId, &entity.CreatedAt)
+		err := rows.Scan(
+			&entity.Id,
+			&entity.Type,
+			&entityData,
+			&entity.AppId,
+			&entity.CreatedAt,
+		)
 		if err != nil {
 			log.Printf("Error scanning installation entity: %v\n", err)
+			return model.ApplicationDataEntity{}, err
+		}
+		err = json.Unmarshal(entityData, &entity.Data)
+		if err != nil {
+			log.Printf("Error unmarshalling installation data: %v\n", err)
 			return model.ApplicationDataEntity{}, err
 		}
 		installations = append(installations, entity)
@@ -428,7 +442,25 @@ func (s *service) MarkSessionCrashed(id string, ownerId int) error {
 }
 
 func (s *service) CreateInstallation(data model.NewInstallationData) error {
-	res, err := s.db.Exec("INSERT INTO public.ob_installations (id, app_id, sdk_version, model, brand, created_at) VALUES ($1, $2, $3, $4, $5, $6)", data.Id, data.AppId, data.SdkVersion, data.Model, data.Brand, data.CreatedAt)
+	stmt := `
+	INSERT INTO public.ob_installations 
+	(id, app_id, type, data, created_at) 
+	VALUES (
+		$1,
+		$2,
+		$3,
+		$4,
+		$5
+	)`
+
+	res, err := s.db.Exec(
+		stmt,
+		data.Id,
+		data.AppId,
+		data.Type,
+		jsonBuildObjectContent(data.Data),
+		data.CreatedAt,
+	)
 	if err != nil {
 		return err
 	}
@@ -446,11 +478,24 @@ func (s *service) CreateInstallation(data model.NewInstallationData) error {
 }
 
 func (s *service) GetInstallation(id string) (model.InstallationEntity, error) {
-	query := "SELECT id, sdk_version, model, brand, app_id, created_at FROM public.ob_installations WHERE id = $1"
+	query := "SELECT id, type, data, app_id, created_at FROM public.ob_installations WHERE id = $1"
 
+	var entityData []byte
 	var entity model.InstallationEntity
-	err := s.db.QueryRow(query, id).Scan(&entity.Id, &entity.SDKVersion, &entity.Model, &entity.Brand, &entity.AppId, &entity.CreatedAt)
+	err := s.db.
+		QueryRow(query, id).
+		Scan(
+			&entity.Id,
+			&entity.Type,
+			&entityData,
+			&entity.AppId,
+			&entity.CreatedAt,
+		)
+	if err != nil {
+		return entity, err
+	}
 
+	err = json.Unmarshal(entityData, &entity.Data)
 	return entity, err
 }
 
@@ -771,4 +816,39 @@ func (s *service) Health() map[string]string {
 func (s *service) Close() error {
 	log.Printf("Disconnected from database\n")
 	return s.db.Close()
+}
+
+func jsonBuildObjectContent(data map[string]any) string {
+	pairs := make([]string, 0, 0)
+
+	for k, v := range data {
+		var sval string
+		switch v := v.(type) {
+		case string:
+			sval = fmt.Sprintf("\"%s\"", v)
+			break
+
+		case bool:
+			sval = "false"
+			if v {
+				sval = "true"
+			}
+			break
+
+		case int, int8, int16, int32, int64:
+			sval = fmt.Sprintf("%d", v)
+			break
+		case uint, uint8, uint16, uint32, uint64:
+			sval = fmt.Sprintf("%du", v)
+		case float32, float64:
+			sval = fmt.Sprintf("%f", v)
+
+		default:
+			continue
+		}
+
+		pairs = append(pairs, fmt.Sprintf("\"%s\": %s", k, sval))
+	}
+
+	return "{" + strings.Join(pairs, ", ") + "}"
 }

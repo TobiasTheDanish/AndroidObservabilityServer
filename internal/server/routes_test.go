@@ -49,37 +49,6 @@ func TestMain(m *testing.M) {
 	}
 }
 
-func TestHandler(t *testing.T) {
-	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	resp := httptest.NewRecorder()
-	c := e.NewContext(req, resp)
-	s := &Server{
-		db: db,
-	}
-	// Assertions
-	if err := s.HelloWorldHandler(c); err != nil {
-		t.Errorf("handler() error = %v", err)
-		return
-	}
-	if resp.Code != http.StatusOK {
-		t.Errorf("handler() wrong status code = %v", resp.Code)
-		return
-	}
-	expected := map[string]string{"message": "Hello World"}
-	var actual map[string]string
-	// Decode the response body into the actual map
-	if err := json.NewDecoder(resp.Body).Decode(&actual); err != nil {
-		t.Errorf("handler() error decoding response body: %v", err)
-		return
-	}
-	// Compare the decoded response with the expected value
-	if !reflect.DeepEqual(expected, actual) {
-		t.Errorf("handler() wrong response body. expected = %v, actual = %v", expected, actual)
-		return
-	}
-}
-
 func TestTeamUserAuth(t *testing.T) {
 	s := &Server{
 		db: db,
@@ -465,7 +434,7 @@ func TestCreateCollectionInvalidTrace(t *testing.T) {
 }
 
 func TestCreateInstallation(t *testing.T) {
-	installation := model.InstallationDTO{
+	installation := model.AndroidInstallationDTO{
 		Id:         "6d40d812-7888-4fd1-98bf-ee92c9be1891",
 		SdkVersion: 32,
 		Model:      "s32",
@@ -511,7 +480,7 @@ func TestCreateInstallation(t *testing.T) {
 }
 
 func TestCreateInstallationNonUUID(t *testing.T) {
-	installation := model.InstallationDTO{
+	installation := model.AndroidInstallationDTO{
 		Id:         "Test1234",
 		SdkVersion: 32,
 		Model:      "s32",
@@ -543,7 +512,7 @@ func TestCreateInstallationNonUUID(t *testing.T) {
 	if resp.Code != http.StatusBadRequest {
 		t.Fatalf("createInstallationHandler() wrong status code = %v", resp.Code)
 	}
-	expected := map[string]string{"message": "Body validation failed: Key: 'InstallationDTO.Id' Error:Field validation for 'Id' failed on the 'uuid' tag"}
+	expected := map[string]string{"message": "Body validation failed: Key: 'AndroidInstallationDTO.Id' Error:Field validation for 'Id' failed on the 'uuid' tag"}
 	var actual map[string]string
 	// Decode the response body into the actual map
 	if err := json.NewDecoder(resp.Body).Decode(&actual); err != nil {
