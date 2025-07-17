@@ -25,6 +25,7 @@ tmp/
 # .env file
 .env
 env.sh
+.envrc
 
 # Project build
 main

@@ -40,13 +40,8 @@ func gracefulShutdown(apiServer *http.Server, done chan bool) {
 }
 
 func main() {
-	err := goenv.Load()
-	if err != nil {
-		log.Fatalf("Error loading environment variables: %v\n", err)
-	}
-
 	var config model.Config
-	err = goenv.Struct(&config)
+	err := goenv.Struct(&config)
 	if err != nil {
 		log.Fatalf("Error reading environment variables: %v\n", err)
 	}
