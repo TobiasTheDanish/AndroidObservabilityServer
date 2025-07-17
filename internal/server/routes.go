@@ -65,6 +65,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	// Api v1 endpoints
 	apiV1 := e.Group("/api/v1", s.APIKeyMiddleware)
 	apiV1.POST("/installations", s.createInstallationHandler)
+	apiV1.POST("/installations/:type", s.createInstallationHandler)
 	apiV1.POST("/collection", s.createCollectionHandler)
 	apiV1.POST("/sessions", s.createSessionHandler)
 	apiV1.POST("/sessions/:id/crash", s.sessionCrashHandler)
@@ -709,6 +710,52 @@ func (s *Server) createInstallationHandler(c echo.Context) error {
 			"model":      installationDTO.Model,
 			"brand":      installationDTO.Brand,
 		},
+		CreatedAt: installationDTO.CreatedAt,
+	})
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": fmt.Sprintf("Installation could not be created: %v", err),
+		})
+	}
+
+	return c.JSON(http.StatusCreated, map[string]string{
+		"message": "Installation created",
+	})
+}
+
+/**
+* @api {post} /api/v1/installations/:type Create a new installation of given type
+* @apiName CreateInstallationOfType
+* @apiGroup Installation
+*
+* @apiUse ApiKeyAuth
+ */
+func (s *Server) createTypedInstallationHandler(c echo.Context) error {
+	appId := c.Get("appId")
+	if appId == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Missing app id")
+	}
+
+	var installationDTO model.InstallationDTO
+	if err := c.Bind(&installationDTO); err != nil {
+		log.Println(err)
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": fmt.Sprintf("Body could not be parsed: %v", err),
+		})
+	}
+	installationDTO.Type = c.Param("type")
+	if err := c.Validate(&installationDTO); err != nil {
+		log.Println(err)
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": fmt.Sprintf("Body validation failed: %v", err),
+		})
+	}
+
+	err := s.db.CreateInstallation(model.NewInstallationData{
+		Id:        installationDTO.Id,
+		AppId:     appId.(int),
+		Type:      installationDTO.Type,
+		Data:      installationDTO.Data,
 		CreatedAt: installationDTO.CreatedAt,
 	})
 	if err != nil {

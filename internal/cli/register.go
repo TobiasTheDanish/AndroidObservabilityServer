@@ -72,14 +72,6 @@ func (c *registerCommand) Run() {
 		return
 	}
 
-	// Create team-user link
-	fmt.Println("Creating team-user link")
-	err = createTeamUserLink(teamId, userId, sessionId)
-	if err != nil {
-		fmt.Printf("Team-User link creation failed! Error: %v\n", err)
-		return
-	}
-
 	fmt.Printf("Successfully created a new user and team!\n    UserID = %d\n    TeamID = %d\n", userId, teamId)
 
 	fmt.Printf("To use the cli run the following command:\n$ export OBSERVE_CLI_SESSION=%s\n", sessionId)
@@ -200,40 +192,4 @@ func createTeam(teamname, sessionId string) (int, error) {
 	userId := resBody["id"].(float64)
 
 	return int(userId), nil
-}
-
-func createTeamUserLink(teamId, userId int, sessionId string) error {
-	body := map[string]any{
-		"userId": userId,
-		"role":   "owner",
-	}
-
-	jsonBytes, err := json.Marshal(body)
-	if err != nil {
-		return err
-	}
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/app/v1/teams/%d/users", baseUrl, teamId), bytes.NewReader(jsonBytes))
-	if err != nil {
-		return err
-	}
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", sessionId))
-	req.Header.Add("Content-Type", "application/json")
-
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-
-	var resBody map[string]any
-	if err = json.NewDecoder(res.Body).Decode(&resBody); err != nil {
-		return err
-	}
-
-	if res.StatusCode != http.StatusCreated {
-		return fmt.Errorf("Status %d, and message: %v", res.StatusCode, resBody["message"])
-	}
-
-	fmt.Println("Team-User link created successfully!")
-
-	return nil
 }

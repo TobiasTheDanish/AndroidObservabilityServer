@@ -18,7 +18,7 @@ type AndroidInstallationDTO struct {
 
 type InstallationDTO struct {
 	Id        string         `json:"id" validate:"required,uuid"`
-	Type      string         `json:"type" validate:"required"`
+	Type      string         `param:"type" json:"type" validate:"required"`
 	Data      map[string]any `json:"data" validate:"required"`
 	CreatedAt int64          `json:"createdAt" validate:"required"`
 }
