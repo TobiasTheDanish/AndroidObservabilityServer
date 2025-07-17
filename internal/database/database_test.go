@@ -6,6 +6,7 @@ import (
 	"context"
 	"log"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -25,6 +26,32 @@ func TestMain(m *testing.M) {
 
 	if teardown != nil && teardown(context.Background()) != nil {
 		log.Fatalf("could not teardown postgres container: %v", err)
+	}
+}
+
+func TestJsonBuildObjectContent(t *testing.T) {
+	data := map[string]any{
+		"string":  "hello",
+		"num":     31,
+		"bool":    true,
+		"invalid": struct{}{},
+	}
+
+	str := jsonBuildObjectContent(data)
+
+	t.Logf("Json output: %v\n", str)
+
+	if !strings.Contains(str, "\"string\": \"hello\"") {
+		t.Error("Malform json string, missing '\"string\": \"hello\"'")
+	}
+	if !strings.Contains(str, "\"num\": 31") {
+		t.Error("Malform json string, missing '\"num\": 31'")
+	}
+	if !strings.Contains(str, "\"bool\": true") {
+		t.Error("Malform json string, missing '\"bool\": true'")
+	}
+	if strings.Contains(str, "invalid") {
+		t.Error("Malform json string, contains key 'invalid', of none a supported type")
 	}
 }
 
@@ -201,11 +228,14 @@ func TestGetApplicationData(t *testing.T) {
 
 	installationId := "TestInstallation321"
 	srv.CreateInstallation(model.NewInstallationData{
-		Id:         installationId,
-		AppId:      appId,
-		SdkVersion: 33,
-		Model:      "MT9556",
-		Brand:      "Newland",
+		Id:    installationId,
+		AppId: appId,
+		Type:  "android",
+		Data: map[string]any{
+			"Model":      "MT9556",
+			"Brand":      "Newland",
+			"SdkVersion": 33,
+		},
 	})
 
 	sessionId1 := "TestSession321"
@@ -292,11 +322,14 @@ func TestCreateInstallation(t *testing.T) {
 	})
 
 	data := model.NewInstallationData{
-		Id:         "TestInstallation123",
-		AppId:      appId,
-		SdkVersion: 31,
-		Model:      "MT9556",
-		Brand:      "Newland",
+		Id:    "TestInstallation123",
+		AppId: appId,
+		Type:  "android",
+		Data: map[string]any{
+			"Model":      "MT9556",
+			"Brand":      "Newland",
+			"SdkVersion": 31,
+		},
 	}
 
 	err := srv.CreateInstallation(data)

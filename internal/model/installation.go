@@ -1,15 +1,14 @@
 package model
 
 type NewInstallationData struct {
-	Id         string
-	AppId      int
-	SdkVersion int
-	Model      string
-	Brand      string
-	CreatedAt  int64
+	Id        string
+	AppId     int
+	Type      string
+	Data      map[string]any
+	CreatedAt int64
 }
 
-type InstallationDTO struct {
+type AndroidInstallationDTO struct {
 	Id         string `json:"id" validate:"required,uuid"`
 	SdkVersion int    `json:"sdkVersion" validate:"required"`
 	Model      string `json:"model" validate:"required"`
@@ -17,11 +16,17 @@ type InstallationDTO struct {
 	CreatedAt  int64  `json:"createdAt" validate:"required"`
 }
 
+type InstallationDTO struct {
+	Id        string         `json:"id" validate:"required,uuid"`
+	Type      string         `param:"type" json:"type" validate:"required"`
+	Data      map[string]any `json:"data" validate:"required"`
+	CreatedAt int64          `json:"createdAt" validate:"required"`
+}
+
 type InstallationEntity struct {
-	Id         string
-	SDKVersion int
-	Model      string
-	Brand      string
-	CreatedAt  int64
-	AppId      int
+	Id        string
+	Type      string
+	Data      map[string]any
+	CreatedAt int64
+	AppId     int
 }

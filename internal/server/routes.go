@@ -65,6 +65,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	// Api v1 endpoints
 	apiV1 := e.Group("/api/v1", s.APIKeyMiddleware)
 	apiV1.POST("/installations", s.createInstallationHandler)
+	apiV1.POST("/installations/:type", s.createInstallationHandler)
 	apiV1.POST("/collection", s.createCollectionHandler)
 	apiV1.POST("/sessions", s.createSessionHandler)
 	apiV1.POST("/sessions/:id/crash", s.sessionCrashHandler)
@@ -124,6 +125,16 @@ func (s *Server) createTeamHandler(c echo.Context) error {
 
 	id, err := s.db.CreateTeam(model.NewTeamData{
 		Name: teamDTO.Name,
+	})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	session := c.Get("session").(model.AuthSessionEntity)
+	err = s.db.CreateTeamUserLink(model.NewTeamUserLinkData{
+		TeamId: id,
+		UserId: session.UserId,
+		Role:   "owner",
 	})
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
@@ -360,11 +371,10 @@ func (s *Server) getAppDataHandler(c echo.Context) error {
 
 	for i, installation := range dataEntity.Installations {
 		dataDTO.Installations[i] = model.InstallationDTO{
-			Id:         installation.Id,
-			SdkVersion: installation.SDKVersion,
-			Model:      installation.Model,
-			Brand:      installation.Brand,
-			CreatedAt:  installation.CreatedAt,
+			Id:        installation.Id,
+			Type:      installation.Type,
+			Data:      installation.Data,
+			CreatedAt: installation.CreatedAt,
 		}
 	}
 	for i, session := range dataEntity.Sessions {
@@ -499,11 +509,10 @@ func (s *Server) getInstallationInfoHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]any{
 		"message": "Success",
 		"installation": model.InstallationDTO{
-			Id:         install.Id,
-			SdkVersion: install.SDKVersion,
-			Model:      install.Model,
-			Brand:      install.Brand,
-			CreatedAt:  install.CreatedAt,
+			Id:        install.Id,
+			Type:      install.Type,
+			Data:      install.Data,
+			CreatedAt: install.CreatedAt,
 		},
 	})
 }
@@ -678,7 +687,7 @@ func (s *Server) createInstallationHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Missing app id")
 	}
 
-	var installationDTO model.InstallationDTO
+	var installationDTO model.AndroidInstallationDTO
 	if err := c.Bind(&installationDTO); err != nil {
 		log.Println(err)
 		return c.JSON(http.StatusBadRequest, map[string]string{
@@ -693,12 +702,61 @@ func (s *Server) createInstallationHandler(c echo.Context) error {
 	}
 
 	err := s.db.CreateInstallation(model.NewInstallationData{
-		Id:         installationDTO.Id,
-		AppId:      appId.(int),
-		SdkVersion: installationDTO.SdkVersion,
-		Model:      installationDTO.Model,
-		Brand:      installationDTO.Brand,
-		CreatedAt:  installationDTO.CreatedAt,
+		Id:    installationDTO.Id,
+		AppId: appId.(int),
+		Type:  "android",
+		Data: map[string]any{
+			"sdkVersion": installationDTO.SdkVersion,
+			"model":      installationDTO.Model,
+			"brand":      installationDTO.Brand,
+		},
+		CreatedAt: installationDTO.CreatedAt,
+	})
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": fmt.Sprintf("Installation could not be created: %v", err),
+		})
+	}
+
+	return c.JSON(http.StatusCreated, map[string]string{
+		"message": "Installation created",
+	})
+}
+
+/**
+* @api {post} /api/v1/installations/:type Create a new installation of given type
+* @apiName CreateInstallationOfType
+* @apiGroup Installation
+*
+* @apiUse ApiKeyAuth
+ */
+func (s *Server) createTypedInstallationHandler(c echo.Context) error {
+	appId := c.Get("appId")
+	if appId == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Missing app id")
+	}
+
+	var installationDTO model.InstallationDTO
+	if err := c.Bind(&installationDTO); err != nil {
+		log.Println(err)
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": fmt.Sprintf("Body could not be parsed: %v", err),
+		})
+	}
+	installationDTO.Type = c.Param("type")
+	if err := c.Validate(&installationDTO); err != nil {
+		log.Println(err)
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": fmt.Sprintf("Body validation failed: %v", err),
+		})
+	}
+
+	err := s.db.CreateInstallation(model.NewInstallationData{
+		Id:        installationDTO.Id,
+		AppId:     appId.(int),
+		Type:      installationDTO.Type,
+		Data:      installationDTO.Data,
+		CreatedAt: installationDTO.CreatedAt,
 	})
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{

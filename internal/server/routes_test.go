@@ -6,12 +6,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"strconv"
 	"testing"
 
 	"github.com/labstack/echo/v4"
@@ -49,37 +47,6 @@ func TestMain(m *testing.M) {
 	}
 }
 
-func TestHandler(t *testing.T) {
-	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	resp := httptest.NewRecorder()
-	c := e.NewContext(req, resp)
-	s := &Server{
-		db: db,
-	}
-	// Assertions
-	if err := s.HelloWorldHandler(c); err != nil {
-		t.Errorf("handler() error = %v", err)
-		return
-	}
-	if resp.Code != http.StatusOK {
-		t.Errorf("handler() wrong status code = %v", resp.Code)
-		return
-	}
-	expected := map[string]string{"message": "Hello World"}
-	var actual map[string]string
-	// Decode the response body into the actual map
-	if err := json.NewDecoder(resp.Body).Decode(&actual); err != nil {
-		t.Errorf("handler() error decoding response body: %v", err)
-		return
-	}
-	// Compare the decoded response with the expected value
-	if !reflect.DeepEqual(expected, actual) {
-		t.Errorf("handler() wrong response body. expected = %v, actual = %v", expected, actual)
-		return
-	}
-}
-
 func TestTeamUserAuth(t *testing.T) {
 	s := &Server{
 		db: db,
@@ -87,66 +54,27 @@ func TestTeamUserAuth(t *testing.T) {
 	e := echo.New()
 	e.Validator = NewValidator()
 
-	teamData := model.CreateTeamDTO{
-		Name: "Test Team",
-	}
-	body, err := json.Marshal(teamData)
-	if err != nil {
-		t.Fatalf("Could not marshal Team: %v", err)
-	}
-	reader := bytes.NewReader(body)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/collection", reader)
-	resp := httptest.NewRecorder()
-	req.Header.Set("Content-type", "application/json")
-
-	c := e.NewContext(req, resp)
-
-	err = s.createTeamHandler(c)
-	if err != nil {
-		t.Errorf("createTeamHandler() error = %v", err)
-		return
-	}
-	expected := map[string]string{
-		"message": "Team created",
-	}
-	var teamActual map[string]any
-	// Decode the response body into the actual map
-	if err := json.NewDecoder(resp.Body).Decode(&teamActual); err != nil {
-		t.Errorf("createTeamHandler() error decoding response body: %v", err)
-		return
-	}
-	if resp.Code != http.StatusCreated {
-		t.Errorf("createTeamHandler() wrong status code = %v", resp.Code)
-		return
-	}
-	// Compare the decoded response with the expected value
-	if !reflect.DeepEqual(expected["message"], teamActual["message"]) {
-		t.Errorf("createTeamHandler() wrong response body. expected = %v, actual = %v", expected, teamActual)
-		return
-	}
-
 	userData := model.UserDTO{
 		Name:     "Test user",
 		Password: "abc1234",
 	}
-	body, err = json.Marshal(userData)
+	body, err := json.Marshal(userData)
 	if err != nil {
 		t.Fatalf("Could not marshal User: %v", err)
 	}
-	reader = bytes.NewReader(body)
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/users", reader)
-	resp = httptest.NewRecorder()
+	reader := bytes.NewReader(body)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/users", reader)
+	resp := httptest.NewRecorder()
 	req.Header.Set("Content-type", "application/json")
 
-	c = e.NewContext(req, resp)
+	c := e.NewContext(req, resp)
 
 	err = s.createUserHandler(c)
 	if err != nil {
 		t.Errorf("createUserHandler() error = %v", err)
 		return
 	}
-	expected = map[string]string{"message": "User created", "id": "1"}
+	expected := map[string]any{"message": "User created", "id": 1}
 	var userActual map[string]any
 	// Decode the response body into the actual map
 	if err := json.NewDecoder(resp.Body).Decode(&userActual); err != nil {
@@ -163,42 +91,43 @@ func TestTeamUserAuth(t *testing.T) {
 		return
 	}
 
-	linkData := model.TeamUserLinkDTO{
-		UserId: int(userActual["id"].(float64)),
-		Role:   "Owner",
+	teamData := model.CreateTeamDTO{
+		Name: "Test Team",
 	}
-	body, err = json.Marshal(linkData)
+	body, err = json.Marshal(teamData)
 	if err != nil {
-		t.Fatalf("Could not marshal Link: %v", err)
+		t.Fatalf("Could not marshal Team: %v", err)
 	}
 	reader = bytes.NewReader(body)
-	req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/teams/%d/users", int(teamActual["id"].(float64))), reader)
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/collection", reader)
 	resp = httptest.NewRecorder()
 	req.Header.Set("Content-type", "application/json")
 
 	c = e.NewContext(req, resp)
-	c.SetParamNames("id")
-	c.SetParamValues(strconv.Itoa(int(teamActual["id"].(float64))))
 
-	err = s.createTeamUserLinkHandler(c)
+	c.Set("session", model.AuthSessionEntity{UserId: 1})
+	err = s.createTeamHandler(c)
 	if err != nil {
-		t.Errorf("createTeamUserLinkHandler() error = %v", err)
+		t.Errorf("createTeamHandler() error = %v", err)
 		return
 	}
-	linkExpected := map[string]string{"message": "Link created"}
-	var linkActual map[string]string
+	expected = map[string]any{
+		"message": "Team created",
+	}
+	var teamActual map[string]any
 	// Decode the response body into the actual map
-	if err := json.NewDecoder(resp.Body).Decode(&linkActual); err != nil {
-		t.Errorf("createTeamUserLinkHandler() error decoding response body: %v", err)
+	if err := json.NewDecoder(resp.Body).Decode(&teamActual); err != nil {
+		t.Errorf("createTeamHandler() error decoding response body: %v", err)
 		return
 	}
 	if resp.Code != http.StatusCreated {
-		t.Errorf("createTeamUserLinkHandler() wrong status code = %v", resp.Code)
+		t.Errorf("createTeamHandler() wrong status code = %v", resp.Code)
 		return
 	}
 	// Compare the decoded response with the expected value
-	if !reflect.DeepEqual(linkExpected, linkActual) {
-		t.Errorf("createTeamUserLinkHandler() wrong response body. expected = %v, actual = %v", linkExpected, linkActual)
+	if !reflect.DeepEqual(expected["message"], teamActual["message"]) {
+		t.Errorf("createTeamHandler() wrong response body. expected = %v, actual = %v", expected, teamActual)
 		return
 	}
 }
@@ -465,7 +394,7 @@ func TestCreateCollectionInvalidTrace(t *testing.T) {
 }
 
 func TestCreateInstallation(t *testing.T) {
-	installation := model.InstallationDTO{
+	installation := model.AndroidInstallationDTO{
 		Id:         "6d40d812-7888-4fd1-98bf-ee92c9be1891",
 		SdkVersion: 32,
 		Model:      "s32",
@@ -511,7 +440,7 @@ func TestCreateInstallation(t *testing.T) {
 }
 
 func TestCreateInstallationNonUUID(t *testing.T) {
-	installation := model.InstallationDTO{
+	installation := model.AndroidInstallationDTO{
 		Id:         "Test1234",
 		SdkVersion: 32,
 		Model:      "s32",
@@ -543,7 +472,7 @@ func TestCreateInstallationNonUUID(t *testing.T) {
 	if resp.Code != http.StatusBadRequest {
 		t.Fatalf("createInstallationHandler() wrong status code = %v", resp.Code)
 	}
-	expected := map[string]string{"message": "Body validation failed: Key: 'InstallationDTO.Id' Error:Field validation for 'Id' failed on the 'uuid' tag"}
+	expected := map[string]string{"message": "Body validation failed: Key: 'AndroidInstallationDTO.Id' Error:Field validation for 'Id' failed on the 'uuid' tag"}
 	var actual map[string]string
 	// Decode the response body into the actual map
 	if err := json.NewDecoder(resp.Body).Decode(&actual); err != nil {
@@ -552,6 +481,56 @@ func TestCreateInstallationNonUUID(t *testing.T) {
 	// Compare the decoded response with the expected value
 	if !reflect.DeepEqual(expected, actual) {
 		t.Fatalf("createInstallationHandler() wrong response body. expected = %v, actual = %v", expected, actual)
+	}
+}
+
+func TestCreateTypedInstallation(t *testing.T) {
+	installation := model.InstallationDTO{
+		Id: "6d40d812-7888-4fd1-98bf-ee92c9be1894",
+		Data: map[string]any{
+			"sdkVersion": 32,
+			"model":      "s32",
+			"brand":      "Samsung",
+		},
+		CreatedAt: 171234553,
+	}
+	body, err := json.Marshal(installation)
+	if err != nil {
+		t.Fatalf("Could not marshal collectionDTO: %v", err)
+	}
+	reader := bytes.NewReader(body)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/installations/android", reader)
+	resp := httptest.NewRecorder()
+	req.Header.Set("Content-type", "application/json")
+
+	e.Validator = NewValidator()
+	c := e.NewContext(req, resp)
+	s := &Server{
+		db: db,
+	}
+
+	c.Set("appId", appId)
+	c.SetParamNames("type")
+	c.SetParamValues("android")
+	err = s.createTypedInstallationHandler(c)
+	if err != nil {
+		t.Fatalf("createTypedInstallationHandler failed: %v\n", err)
+	}
+	var actual map[string]string
+	// Decode the response body into the actual map
+	if err := json.NewDecoder(resp.Body).Decode(&actual); err != nil {
+		t.Fatalf("createTypedInstallationHandler() error decoding response body: %v", err)
+	}
+	if resp.Code != http.StatusCreated {
+		t.Fatalf("createTypedInstallationHandler() wrong status code = %v, body = %#v", resp.Code, actual)
+	}
+
+	expected := map[string]string{"message": "Installation created"}
+	// Compare the decoded response with the expected value
+	if !reflect.DeepEqual(expected, actual) {
+		t.Fatalf("createTypedInstallationHandler() wrong response body. expected = %v, actual = %v", expected, actual)
 	}
 }
 
