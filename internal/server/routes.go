@@ -65,7 +65,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	// Api v1 endpoints
 	apiV1 := e.Group("/api/v1", s.APIKeyMiddleware)
 	apiV1.POST("/installations", s.createInstallationHandler)
-	apiV1.POST("/installations/:type", s.createInstallationHandler)
+	apiV1.POST("/installations/:type", s.createTypedInstallationHandler)
 	apiV1.POST("/collection", s.createCollectionHandler)
 	apiV1.POST("/sessions", s.createSessionHandler)
 	apiV1.POST("/sessions/:id/crash", s.sessionCrashHandler)
