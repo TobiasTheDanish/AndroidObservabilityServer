@@ -21,11 +21,12 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-// Service represents a service that interacts with a database.
-type Service interface {
+type TeamService interface {
 	CreateTeam(data model.NewTeamData) (int, error)
 	GetTeamsForUser(userId int) ([]model.TeamEntity, error)
+}
 
+type AuthService interface {
 	CreateUser(data model.NewUserData) (int, error)
 	GetUserByName(username string) (model.UserEntity, error)
 	GetUserById(id int) (model.UserEntity, error)
@@ -37,35 +38,76 @@ type Service interface {
 	GetAuthSession(sessionId string) (model.AuthSessionEntity, error)
 	ExtendAuthSession(sessionId string, newExpiry int64) (string, error)
 	DeleteAuthSession(sessionId string) error
+}
 
-	CreateApplication(data model.NewApplicationData) (int, error)
-	GetApplication(id int) (model.ApplicationEntity, error)
-	GetApplicationData(id int) (model.ApplicationDataEntity, error)
-	GetTeamApplications(teamId int) ([]model.ApplicationEntity, error)
-
+type ApiKeyService interface {
 	CreateApiKey(data model.NewApiKeyData) error
 	// Validates that the given apiKey exists in the database and is active
 	ValidateApiKey(string) bool
 	// Returns the id of the owner of the ApiKey
 	GetAppId(apiKey string) (int, error)
+}
 
+type ApplicationService interface {
+	CreateApplication(data model.NewApplicationData) (int, error)
+	GetApplication(id int) (model.ApplicationEntity, error)
+	GetApplicationData(id int) (model.ApplicationDataEntity, error)
+	GetTeamApplications(teamId int) ([]model.ApplicationEntity, error)
+}
+
+type InstallationService interface {
 	CreateInstallation(data model.NewInstallationData) error
 	GetInstallation(id string) (model.InstallationEntity, error)
+}
 
+type SessionService interface {
 	CreateSession(data model.NewSessionData) error
 	GetSession(id string) (model.SessionEntity, error)
 	MarkSessionCrashed(id string, ownerId int) error
+}
 
+type EventService interface {
 	CreateEvent(data model.NewEventData) error
 	GetEventsBySessionId(sessionId string) ([]model.EventEntity, error)
+}
 
+type TraceService interface {
 	CreateTrace(data model.NewTraceData) error
 	GetTracesBySessionId(sessionId string) ([]model.TraceEntity, error)
+}
 
+type LogService interface {
+	CreateLog(data model.NewLogData) error
+}
+
+type MemoryUsageService interface {
 	CreateMemoryUsage(data model.NewMemoryUsageData) error
 	GetMemoryUsageById(id string) (model.MemoryUsageEntity, error)
 	GetMemoryUsageBySessionId(id string) ([]model.MemoryUsageEntity, error)
 	GetMemoryUsageByInstallationId(id string) ([]model.MemoryUsageEntity, error)
+}
+
+// Service represents a service that interacts with a database.
+type Service interface {
+	TeamService
+
+	AuthService
+
+	ApplicationService
+
+	ApiKeyService
+
+	InstallationService
+
+	SessionService
+
+	EventService
+
+	TraceService
+
+	LogService
+
+	MemoryUsageService
 
 	// Health returns a map of health status information.
 	// The keys and values in the map are service-specific.
@@ -637,6 +679,25 @@ func (s *service) GetTracesBySessionId(sessionId string) ([]model.TraceEntity, e
 	}
 
 	return entities, err
+}
+
+func (s *service) CreateLog(data model.NewLogData) error {
+	stmt := `
+	INSERT INTO public.ob_logs 
+	(app_id, session_id, message, data, created_at)
+	VALUES ($1, $2, $3, $4, $5)
+	`
+
+	_, err := s.db.Exec(
+		stmt,
+		data.AppId,
+		data.SessionId,
+		data.Message,
+		jsonBuildObjectContent(data.Data),
+		data.CreatedAt,
+	)
+
+	return err
 }
 
 func (s *service) CreateMemoryUsage(data model.NewMemoryUsageData) error {

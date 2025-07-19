@@ -71,6 +71,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	apiV1.POST("/sessions/:id/crash", s.sessionCrashHandler)
 	apiV1.POST("/events", s.createEventHandler)
 	apiV1.POST("/traces", s.createTraceHandler)
+	apiV1.POST("/logs", s.createLogHandler)
 	apiV1.POST("/resources/memory", s.createMemoryUsageHandler)
 
 	return e
