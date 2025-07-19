@@ -41,6 +41,7 @@ func TestMain(m *testing.M) {
 	}
 
 	m.Run()
+	db.Close()
 
 	if teardown != nil && teardown(context.Background()) != nil {
 		log.Fatalf("could not teardown postgres container: %v", err)

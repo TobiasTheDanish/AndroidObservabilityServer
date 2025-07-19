@@ -76,10 +76,6 @@ type TraceService interface {
 	GetTracesBySessionId(sessionId string) ([]model.TraceEntity, error)
 }
 
-type LogService interface {
-	CreateLog(data model.NewLogData) error
-}
-
 type MemoryUsageService interface {
 	CreateMemoryUsage(data model.NewMemoryUsageData) error
 	GetMemoryUsageById(id string) (model.MemoryUsageEntity, error)
@@ -121,10 +117,6 @@ type Service interface {
 type service struct {
 	db *sql.DB
 }
-
-var (
-	dbInstance *service
-)
 
 func SetupTestDatabase(schema string) (func(context.Context, ...testcontainers.TerminateOption) error, model.DatabaseConfig, error) {
 	var (
@@ -188,20 +180,16 @@ func SetupTestDatabase(schema string) (func(context.Context, ...testcontainers.T
 
 func New(config model.DatabaseConfig) Service {
 	// Reuse Connection
-	if dbInstance != nil {
-		return dbInstance
-	}
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&search_path=%s", config.Username, config.Password, config.Host, config.Port, config.Database, config.Schema)
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {
 		log.Fatal(err)
 		return nil
 	}
-	dbInstance = &service{
+
+	return &service{
 		db: db,
 	}
-
-	return dbInstance
 }
 
 func (s *service) CreateTeam(data model.NewTeamData) (int, error) {
@@ -679,25 +667,6 @@ func (s *service) GetTracesBySessionId(sessionId string) ([]model.TraceEntity, e
 	}
 
 	return entities, err
-}
-
-func (s *service) CreateLog(data model.NewLogData) error {
-	stmt := `
-	INSERT INTO public.ob_logs 
-	(app_id, session_id, message, data, created_at)
-	VALUES ($1, $2, $3, $4, $5)
-	`
-
-	_, err := s.db.Exec(
-		stmt,
-		data.AppId,
-		data.SessionId,
-		data.Message,
-		jsonBuildObjectContent(data.Data),
-		data.CreatedAt,
-	)
-
-	return err
 }
 
 func (s *service) CreateMemoryUsage(data model.NewMemoryUsageData) error {

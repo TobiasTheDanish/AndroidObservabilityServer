@@ -165,3 +165,105 @@ func TestServer_createLogHandler(t *testing.T) {
 		t.Fatalf("could not teardown postgres container: %v", err)
 	}
 }
+
+func TestServer_getLatestSessionLogsHandler(t *testing.T) {
+	teardown, config, err := database.SetupTestDatabase("public")
+	if err != nil {
+		t.Fatalf("could not start postgres container: %v", err)
+	}
+
+	db := database.New(config)
+	userId, err := db.CreateUser(model.NewUserData{Name: "Test user"})
+	if err != nil {
+		t.Fatalf("Could not create test user: %v", err)
+	}
+	teamId, err := db.CreateTeam(model.NewTeamData{Name: "Test team"})
+	if err != nil {
+		t.Fatalf("Could not create test team: %v", err)
+	}
+	db.CreateTeamUserLink(model.NewTeamUserLinkData{
+		TeamId: teamId,
+		UserId: userId,
+		Role:   "owner",
+	})
+	appId, err = db.CreateApplication(model.NewApplicationData{
+		Name:   "Test app",
+		TeamId: teamId,
+	})
+	if err != nil {
+		t.Fatalf("Could not create test application: %v", err)
+	}
+	sessionId := "6d40d812-7888-4fd1-98bf-ee92c9be1894"
+	err = db.CreateSession(model.NewSessionData{
+		Id:             sessionId,
+		InstallationId: "1234",
+		AppId:          appId,
+		CreatedAt:      171234503,
+		Crashed:        false,
+	})
+
+	s := &Server{
+		db: db,
+	}
+	e := echo.New()
+	e.Validator = NewValidator()
+
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for target function.
+		cb       func() (echo.Context, *httptest.ResponseRecorder)
+		code     int
+		expected map[string]any
+	}{
+		{
+			name: "Test happy path",
+			cb: func() (echo.Context, *httptest.ResponseRecorder) {
+				req := httptest.NewRequest(http.MethodPost, "/api/v1/installations/android", nil)
+				resp := httptest.NewRecorder()
+
+				c := e.NewContext(req, resp)
+
+				authSession := model.AuthSessionEntity{
+					Id:     "secret",
+					UserId: userId,
+					Expiry: 20000000000,
+				}
+				c.Set("session", authSession)
+				c.SetParamNames("id")
+				c.SetParamValues(sessionId)
+				return c, resp
+			},
+			code:     http.StatusOK,
+			expected: map[string]any{"message": "Success", "logs": []interface{}{}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, resp := tt.cb()
+			gotErr := s.getLatestSessionLogsHandler(c)
+			if gotErr != nil {
+				t.Errorf("getLatestSessionLogsHandler() failed: %v", gotErr)
+				return
+			}
+
+			var actual map[string]any
+			// Decode the response body into the actual map
+			if err := json.NewDecoder(resp.Body).Decode(&actual); err != nil {
+				t.Fatalf("getLatestSessionLogsHandler() error decoding response body: %v", err)
+			}
+			if resp.Code != tt.code {
+				t.Fatalf("getLatestSessionLogsHandler() wrong status code = %v, expected = %v, body = %#v", resp.Code, tt.code, actual)
+			}
+
+			// Compare the decoded response with the expected value
+			if !reflect.DeepEqual(tt.expected, actual) {
+				t.Fatalf("getLatestSessionLogsHandler() wrong response body. expected = %v, actual = %v", tt.expected, actual)
+			}
+		})
+	}
+	s.db.Close()
+
+	if teardown != nil && teardown(context.Background()) != nil {
+		t.Fatalf("could not teardown postgres container: %v", err)
+	}
+}

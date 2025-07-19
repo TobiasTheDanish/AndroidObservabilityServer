@@ -60,6 +60,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	appV1.GET("/sessions/:id/resources", s.getSessionMemoryUsageHandler)
 	appV1.GET("/sessions/:id/events", s.getSessionEventsHandler)
 	appV1.GET("/sessions/:id/traces", s.getSessionTracesHandler)
+	appV1.GET("/sessions/:id/logs", s.getLatestSessionLogsHandler)
 	appV1.GET("/sessions/:id", s.getSessionInfoHandler)
 
 	// Api v1 endpoints
