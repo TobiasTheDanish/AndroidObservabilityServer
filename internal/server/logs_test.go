@@ -201,6 +201,22 @@ func TestServer_getLatestSessionLogsHandler(t *testing.T) {
 		CreatedAt:      171234503,
 		Crashed:        false,
 	})
+	if err != nil {
+		t.Fatalf("Could not create test application: %v", err)
+	}
+
+	for range 1000 {
+		data := model.NewLogData{
+			AppId:     appId,
+			SessionId: sessionId,
+			Message:   "Hello world",
+			Data:      map[string]any{},
+			CreatedAt: 12345567755,
+		}
+		if err = db.CreateLog(data); err != nil {
+			t.Fatalf("Could not create test application: %v", err)
+		}
+	}
 
 	s := &Server{
 		db: db,
@@ -211,14 +227,15 @@ func TestServer_getLatestSessionLogsHandler(t *testing.T) {
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
-		cb       func() (echo.Context, *httptest.ResponseRecorder)
-		code     int
-		expected map[string]any
+		cb               func() (echo.Context, *httptest.ResponseRecorder)
+		code             int
+		expectedMessage  string
+		expectedLogCount int
 	}{
 		{
 			name: "Test happy path",
 			cb: func() (echo.Context, *httptest.ResponseRecorder) {
-				req := httptest.NewRequest(http.MethodPost, "/api/v1/installations/android", nil)
+				req := httptest.NewRequest(http.MethodPost, "/api/v1/installations/android?pageSize=5", nil)
 				resp := httptest.NewRecorder()
 
 				c := e.NewContext(req, resp)
@@ -233,8 +250,97 @@ func TestServer_getLatestSessionLogsHandler(t *testing.T) {
 				c.SetParamValues(sessionId)
 				return c, resp
 			},
-			code:     http.StatusOK,
-			expected: map[string]any{"message": "Success", "logs": []interface{}{}},
+			code:             http.StatusOK,
+			expectedMessage:  "Success",
+			expectedLogCount: 5,
+		},
+		{
+			name: "Test second page",
+			cb: func() (echo.Context, *httptest.ResponseRecorder) {
+				req := httptest.NewRequest(http.MethodPost, "/api/v1/installations/android?pageSize=5&page=2", nil)
+				resp := httptest.NewRecorder()
+
+				c := e.NewContext(req, resp)
+
+				authSession := model.AuthSessionEntity{
+					Id:     "secret",
+					UserId: userId,
+					Expiry: 20000000000,
+				}
+				c.Set("session", authSession)
+				c.SetParamNames("id")
+				c.SetParamValues(sessionId)
+				return c, resp
+			},
+			code:             http.StatusOK,
+			expectedMessage:  "Success",
+			expectedLogCount: 5,
+		},
+		{
+			name: "Test page < 0",
+			cb: func() (echo.Context, *httptest.ResponseRecorder) {
+				req := httptest.NewRequest(http.MethodPost, "/api/v1/installations/android?pageSize=5&page=-1", nil)
+				resp := httptest.NewRecorder()
+
+				c := e.NewContext(req, resp)
+
+				authSession := model.AuthSessionEntity{
+					Id:     "secret",
+					UserId: userId,
+					Expiry: 20000000000,
+				}
+				c.Set("session", authSession)
+				c.SetParamNames("id")
+				c.SetParamValues(sessionId)
+				return c, resp
+			},
+			code:             http.StatusOK,
+			expectedMessage:  "Success",
+			expectedLogCount: 5,
+		},
+		{
+			name: "Test page * size > len",
+			cb: func() (echo.Context, *httptest.ResponseRecorder) {
+				req := httptest.NewRequest(http.MethodPost, "/api/v1/installations/android?pageSize=10&page=101", nil)
+				resp := httptest.NewRecorder()
+
+				c := e.NewContext(req, resp)
+
+				authSession := model.AuthSessionEntity{
+					Id:     "secret",
+					UserId: userId,
+					Expiry: 20000000000,
+				}
+				c.Set("session", authSession)
+				c.SetParamNames("id")
+				c.SetParamValues(sessionId)
+				return c, resp
+			},
+			code:             http.StatusOK,
+			expectedMessage:  "Success",
+			expectedLogCount: 0,
+		},
+		{
+			name: "Test pageSize > 100",
+			cb: func() (echo.Context, *httptest.ResponseRecorder) {
+				req := httptest.NewRequest(http.MethodPost, "/api/v1/installations/android?pageSize=1000", nil)
+				resp := httptest.NewRecorder()
+
+				c := e.NewContext(req, resp)
+
+				authSession := model.AuthSessionEntity{
+					Id:     "secret",
+					UserId: userId,
+					Expiry: 20000000000,
+				}
+				c.Set("session", authSession)
+				c.SetParamNames("id")
+				c.SetParamValues(sessionId)
+				return c, resp
+			},
+			code:             http.StatusOK,
+			expectedMessage:  "Success",
+			expectedLogCount: 100,
 		},
 	}
 	for _, tt := range tests {
@@ -256,8 +362,16 @@ func TestServer_getLatestSessionLogsHandler(t *testing.T) {
 			}
 
 			// Compare the decoded response with the expected value
-			if !reflect.DeepEqual(tt.expected, actual) {
-				t.Fatalf("getLatestSessionLogsHandler() wrong response body. expected = %v, actual = %v", tt.expected, actual)
+			if !reflect.DeepEqual(tt.expectedMessage, actual["message"]) {
+				t.Fatalf("getLatestSessionLogsHandler() wrong response body. expected = %v, actual = %v", tt.expectedMessage, actual)
+			}
+			if resp.Code == http.StatusOK {
+				logsJson := actual["logs"]
+				logs := logsJson.([]interface{})
+
+				if len(logs) != tt.expectedLogCount {
+					t.Fatalf("getLatestSessionLogsHandler() = Expected %v logs, but got %v logs", tt.expectedLogCount, len(logs))
+				}
 			}
 		})
 	}

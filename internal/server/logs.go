@@ -78,7 +78,7 @@ func (s *Server) getLatestSessionLogsHandler(c echo.Context) error {
 		pageSize = 1
 	}
 
-	ents, err := s.db.GetLatestLogsBySessionId(sessionId, pageSize, page-1)
+	ents, err := s.db.GetLatestLogsBySessionId(sessionId, pageSize, pageSize*(page-1))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"message": err.Error(),
