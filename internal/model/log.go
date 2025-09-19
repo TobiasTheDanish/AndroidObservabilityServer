@@ -3,16 +3,16 @@ package model
 type CreateLogDTO struct {
 	SessionId string         `json:"sessionId" validate:"required,uuid"`
 	Message   string         `json:"message" validate:"required"`
-	Data      map[string]any `json:"data" validate:"required"`
-	CreatedAt int64          `json:"startTime" validate:"required"`
+	Data      map[string]any `json:"data"`
+	CreatedAt int64          `json:"createdAt" validate:"required"`
 }
 
 type GetLogDTO struct {
 	Id        int            `json:"id" validate:"required"`
 	SessionId string         `json:"sessionId" validate:"required,uuid"`
 	Message   string         `json:"message" validate:"required"`
-	Data      map[string]any `json:"data" validate:"required"`
-	CreatedAt int64          `json:"startTime" validate:"required"`
+	Data      map[string]any `json:"data"`
+	CreatedAt int64          `json:"createdAt" validate:"required"`
 }
 
 type NewLogData struct {

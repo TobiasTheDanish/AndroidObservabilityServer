@@ -51,7 +51,7 @@ func TestJsonBuildObjectContent(t *testing.T) {
 		t.Error("Malform json string, missing '\"bool\": true'")
 	}
 	if strings.Contains(str, "invalid") {
-		t.Error("Malform json string, contains key 'invalid', of none a supported type")
+		t.Error("Malform json string, contains key 'invalid', of a not supported type")
 	}
 }
 
